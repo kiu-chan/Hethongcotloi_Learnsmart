@@ -15,7 +15,7 @@ import html2pdf from 'html2pdf.js';
 
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '');
 
-const SYSTEM_INSTRUCTION = `Bạn là trợ lý AI thông minh dành cho giáo viên phổ thông Việt Nam. Tên bạn là "Trợ lý NoteBookLM".
+const SYSTEM_INSTRUCTION = `Bạn là trợ lý AI thông minh dành cho giáo viên phổ thông Việt Nam. Tên bạn là "Trợ lý Learn Smart".
 
 VAI TRÒ:
 Bạn hỗ trợ giáo viên trong mọi hoạt động giảng dạy: soạn bài, lên kế hoạch, giải đáp chuyên môn, gợi ý phương pháp dạy học, tạo bài tập/đề thi, và tư vấn sư phạm.
@@ -182,7 +182,7 @@ const TeacherChat = () => {
     container.style.cssText = 'padding:20px;font-family:Arial,sans-serif;color:#1f2937;max-width:700px;';
     container.innerHTML = `
       <div style="border-bottom:2px solid #10b981;padding-bottom:12px;margin-bottom:16px;">
-        <h2 style="margin:0;color:#065f46;font-size:18px;">Trợ lý AI - NoteBookLM</h2>
+        <h2 style="margin:0;color:#065f46;font-size:18px;">Trợ lý AI - Learn Smart</h2>
         <p style="margin:4px 0 0;color:#6b7280;font-size:12px;">${new Date(msg.timestamp).toLocaleString('vi-VN')}</p>
       </div>
       <div style="font-size:14px;line-height:1.8;">${document.querySelector(`[data-msg-id="msg-${msg.timestamp}"]`)?.innerHTML || msg.text}</div>

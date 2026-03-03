@@ -150,7 +150,7 @@ function FeaturesPage() {
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-500"> giáo dục</span>
           </h1>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto mb-10">
-            NoteBookLM cung cấp đầy đủ công cụ AI giúp giáo viên tiết kiệm thời gian soạn giảng và học sinh học tập hiệu quả hơn mỗi ngày.
+            Learn Smart cung cấp đầy đủ công cụ AI giúp giáo viên tiết kiệm thời gian soạn giảng và học sinh học tập hiệu quả hơn mỗi ngày.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <Link

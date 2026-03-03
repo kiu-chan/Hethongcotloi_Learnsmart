@@ -110,7 +110,7 @@ const Login = () => {
               <IoBookOutline className="w-7 h-7 text-white" />
             </div>
             <div className="text-left">
-              <h1 className="text-2xl font-bold text-gray-800">NoteBookLM</h1>
+              <h1 className="text-2xl font-bold text-gray-800">Learn Smart</h1>
               <p className="text-xs text-gray-500 -mt-1">Học tập thông minh</p>
             </div>
           </Link>

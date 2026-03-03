@@ -251,7 +251,7 @@ function Home() {
             Sẵn sàng trải nghiệm?
           </h2>
           <p className="text-emerald-50 mb-8 text-lg">
-            Tham gia cùng hàng nghìn giáo viên đang sử dụng NoteBookLM mỗi ngày
+            Tham gia cùng hàng nghìn giáo viên đang sử dụng Learn Smart mỗi ngày
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <Link

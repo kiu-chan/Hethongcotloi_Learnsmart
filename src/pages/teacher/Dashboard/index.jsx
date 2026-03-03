@@ -214,7 +214,7 @@ const TeacherDashboard = () => {
         <h1 className="text-3xl font-bold mb-2">
           Xin chào{userName ? `, ${userName}` : ', Thầy/Cô'}! 👋
         </h1>
-        <p className="text-emerald-100">Chúc bạn một ngày làm việc hiệu quả với NoteBookLM</p>
+        <p className="text-emerald-100">Chúc bạn một ngày làm việc hiệu quả với Learn Smart</p>
       </div>
 
       {/* Stats Grid */}

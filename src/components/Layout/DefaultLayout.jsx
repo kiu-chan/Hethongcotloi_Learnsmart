@@ -81,8 +81,8 @@ function DefaultLayout({ children }) {
                 <IoBookOutline className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-800">NoteBookLM</h1>
-                <p className="text-[10px] text-gray-500 -mt-1">Học tập thông minh</p>
+                <h1 className="text-xl font-bold text-gray-800">Learn Smart</h1>
+                <p className="text-[10px] text-gray-500 -mt-1">Học tập thông minh, phát triển toàn diện</p>
               </div>
             </Link>
 
@@ -286,7 +286,7 @@ function DefaultLayout({ children }) {
                 <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-400 rounded-xl flex items-center justify-center">
                   <IoBookOutline className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-lg font-bold text-white">NoteBookLM</span>
+                <span className="text-lg font-bold text-white">Learn Smart</span>
               </Link>
               <p className="text-sm text-gray-400 mb-4">
                 Nền tảng học tập thông minh với AI hỗ trợ giáo viên và học sinh. 
@@ -318,7 +318,7 @@ function DefaultLayout({ children }) {
           
           <div className="mt-8 pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-sm text-gray-400">
-              © 2025 NoteBookLM. All rights reserved.
+              © 2025 Learn Smart. All rights reserved.
             </p>
             <div className="flex gap-4">
               <a href="#" className="text-gray-400 hover:text-emerald-400 transition-colors">

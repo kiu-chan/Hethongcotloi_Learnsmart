@@ -70,7 +70,7 @@ const StudentLayout = ({ children }) => {
                 <IoBookOutline className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-gray-800">NoteBookLM</h1>
+                <h1 className="text-lg font-bold text-gray-800">Learn Smart</h1>
                 <p className="text-xs text-blue-600">Học sinh</p>
               </div>
             </Link>

@@ -9,7 +9,7 @@ const contactInfo = [
   {
     icon: FiMail,
     title: 'Email hỗ trợ',
-    value: 'support@notebooklm.vn',
+    value: 'support@learn-smart.vn',
     desc: 'Phản hồi trong vòng 24 giờ làm việc',
     color: 'bg-blue-50',
     iconColor: 'text-blue-500',
@@ -134,7 +134,7 @@ function ContactPage() {
                     <IoBookOutline className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-800">NoteBookLM</h2>
+                    <h2 className="text-xl font-bold text-gray-800">Learn Smart</h2>
                     <p className="text-xs text-gray-500">Học tập thông minh</p>
                   </div>
                 </Link>

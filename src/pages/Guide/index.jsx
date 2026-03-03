@@ -95,16 +95,16 @@ const steps = {
 
 const faqs = [
   {
-    q: 'NoteBookLM có miễn phí không?',
-    a: 'Có! NoteBookLM hoàn toàn miễn phí cho giáo viên và học sinh tham gia vào hệ thống. Bạn chỉ cần đăng ký tài khoản và bắt đầu sử dụng ngay.',
+    q: 'Learn Smart có miễn phí không?',
+    a: 'Có! Learn Smart hoàn toàn miễn phí cho giáo viên và học sinh tham gia vào hệ thống. Bạn chỉ cần đăng ký tài khoản và bắt đầu sử dụng ngay.',
   },
   {
     q: 'Tôi cần cài đặt gì để sử dụng?',
-    a: 'Không cần cài đặt bất kỳ phần mềm nào. NoteBookLM hoạt động hoàn toàn trên trình duyệt web. Chỉ cần có kết nối Internet là bạn có thể sử dụng mọi tính năng.',
+    a: 'Không cần cài đặt bất kỳ phần mềm nào. Learn Smart hoạt động hoàn toàn trên trình duyệt web. Chỉ cần có kết nối Internet là bạn có thể sử dụng mọi tính năng.',
   },
   {
     q: 'AI tạo câu hỏi có chính xác không?',
-    a: 'NoteBookLM sử dụng Google Gemini – một trong những mô hình AI mạnh nhất hiện nay. Câu hỏi được tạo ra dựa trên nội dung tài liệu bạn cung cấp, đảm bảo độ chính xác và phù hợp với nội dung giảng dạy.',
+    a: 'Learn Smart sử dụng Google Gemini – một trong những mô hình AI mạnh nhất hiện nay. Câu hỏi được tạo ra dựa trên nội dung tài liệu bạn cung cấp, đảm bảo độ chính xác và phù hợp với nội dung giảng dạy.',
   },
   {
     q: 'Tôi có thể upload loại file nào?',
@@ -170,7 +170,7 @@ function GuidePage() {
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-500"> vài phút</span>
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Hướng dẫn từng bước giúp bạn làm quen và sử dụng thành thạo NoteBookLM nhanh chóng.
+            Hướng dẫn từng bước giúp bạn làm quen và sử dụng thành thạo Learn Smart nhanh chóng.
           </p>
         </div>
       </section>
@@ -249,7 +249,7 @@ function GuidePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-800 mb-3">Mẹo sử dụng hiệu quả</h2>
-            <p className="text-gray-600">Những gợi ý giúp bạn khai thác tối đa sức mạnh của NoteBookLM</p>
+            <p className="text-gray-600">Những gợi ý giúp bạn khai thác tối đa sức mạnh của Learn Smart</p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
             {[

@@ -79,7 +79,7 @@ const AdminLayout = ({ children }) => {
               </div>
               <div>
                 <span className="text-xl font-bold">Admin Panel</span>
-                <p className="text-xs text-indigo-200">NoteBookLM</p>
+                <p className="text-xs text-indigo-200">Learn Smart</p>
               </div>
             </Link>
             <button

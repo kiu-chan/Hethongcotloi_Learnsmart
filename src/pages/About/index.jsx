@@ -96,7 +96,7 @@ function About() {
             </h1>
 
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              NoteBookLM là dự án nghiên cứu khoa học ứng dụng AI vào giáo dục,
+              Learn Smart là dự án nghiên cứu khoa học ứng dụng AI vào giáo dục,
               được phát triển tại tỉnh Tuyên Quang với mục tiêu hỗ trợ giáo viên
               trong công tác giảng dạy và quản lý học sinh.
             </p>
@@ -121,7 +121,7 @@ function About() {
                 và kết nối với học sinh, thay vì bị cuốn vào các công việc hành chính lặp đi lặp lại.
               </p>
               <p className="text-gray-600 mb-6">
-                NoteBookLM được xây dựng để tự động hóa các tác vụ như tóm tắt tài liệu,
+                Learn Smart được xây dựng để tự động hóa các tác vụ như tóm tắt tài liệu,
                 tạo câu hỏi kiểm tra, thiết kế đề thi, và viết nhận xét học sinh -
                 giúp giáo viên tiết kiệm hàng giờ mỗi ngày.
               </p>
@@ -219,7 +219,7 @@ function About() {
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-800 mb-4">Đội ngũ phát triển</h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              Những người đứng sau NoteBookLM
+              Những người đứng sau Learn Smart
             </p>
           </div>
 
@@ -246,7 +246,7 @@ function About() {
 
           <div className="flex flex-wrap justify-center gap-6 mb-8">
             {[
-              { icon: FiMail, text: 'contact@notebooklm.vn' },
+              { icon: FiMail, text: 'contact@learnsmart.vn' },
               { icon: FiPhone, text: '0123 456 789' },
               { icon: FiMapPin, text: 'Tuyên Quang, Việt Nam' },
             ].map((item, i) => {
