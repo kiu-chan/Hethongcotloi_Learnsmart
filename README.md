@@ -205,13 +205,13 @@ chmod +x deploy.sh
 npm run build
 
 # 2. Upload lên EC2
-rsync -avz -e "ssh -i ~/.ssh/your-key.pem" \
+rsync -avz -e "ssh -i key.pem" \
   --exclude='node_modules' --exclude='src' --exclude='.git' --exclude='.env' \
   dist/ server/ package.json \
-  ubuntu@<EC2-IP>:/var/www/nckh_tuyenquang/
+  ubuntu@<54.179.194.184>:/var/www/nckh_tuyenquang/
 
 # 3. SSH vào EC2 và restart
-ssh -i ~/.ssh/your-key.pem ubuntu@<EC2-IP>
+ssh -i key.pem ubuntu@<54.179.194.184>
 cd /var/www/nckh_tuyenquang
 npm install --omit=dev
 pm2 restart nckh
