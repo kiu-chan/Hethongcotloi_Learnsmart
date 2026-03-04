@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
-import { FiX, FiPlus, FiTrash2, FiUsers, FiLoader, FiZap, FiEye, FiEyeOff } from 'react-icons/fi';
+import { useState, useEffect, useRef } from 'react';
+import { FiX, FiPlus, FiTrash2, FiUsers, FiLoader, FiZap, FiEye, FiEyeOff, FiUpload, FiDownload } from 'react-icons/fi';
 import OpenAI from 'openai';
+import * as XLSX from 'xlsx';
+import mammoth from 'mammoth';
 import { API_URL, getAuthHeaders } from './utils';
 import MathDisplay from '../../../components/MathDisplay';
 
@@ -61,6 +63,128 @@ const CreateGameModal = ({ type, onClose, onCreated, editGame = null }) => {
   const [wheelQuestionMode, setWheelQuestionMode] = useState(
     () => editGame && type === 'wheel' ? (editGame.wheelQuestions?.length || 0) > 0 : false
   );
+
+  // File import state
+  const quizFileInputRef = useRef(null);
+  const [fileImporting, setFileImporting] = useState(false);
+  const [fileImportError, setFileImportError] = useState('');
+
+  const readAsArrayBuffer = (file) =>
+    new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = (e) => res(e.target.result);
+      r.onerror = () => rej(new Error('Lỗi đọc file'));
+      r.readAsArrayBuffer(file);
+    });
+
+  const parseQuestionsFromExcel = async (file) => {
+    const ab = await readAsArrayBuffer(file);
+    const wb = XLSX.read(ab, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+    // Skip rows until we find one that looks like questions (has at least 5 cells)
+    const dataRows = rows.filter((r) => r.length >= 5 && r[1]);
+    // Detect header row and skip it
+    const start = /câu hỏi|question/i.test(String(dataRows[0]?.[1] ?? '')) ? 1 : 0;
+    return dataRows.slice(start).map((row) => {
+      const answers = [String(row[2] ?? ''), String(row[3] ?? ''), String(row[4] ?? ''), String(row[5] ?? '')];
+      const correctLetter = String(row[6] ?? 'A').trim().toUpperCase();
+      const correct = Math.max(0, correctLetter.charCodeAt(0) - 65);
+      return { question: String(row[1] ?? ''), answers, correct: correct < 4 ? correct : 0 };
+    }).filter((q) => q.question.trim());
+  };
+
+  const parseQuestionsFromWord = async (file) => {
+    const ab = await readAsArrayBuffer(file);
+    const result = await mammoth.extractRawText({ arrayBuffer: ab });
+    const lines = result.value.split('\n').map((l) => l.trim()).filter(Boolean);
+    const questions = [];
+    let i = 0;
+    while (i < lines.length) {
+      const match = lines[i].match(/^câu\s*(\d+)\s*[:.)]\s*(.*)/i);
+      if (!match) { i++; continue; }
+      let questionText = match[2].trim();
+      i++;
+      const answers = [];
+      let correct = 0;
+      while (i < lines.length && !/^câu\s*\d+/i.test(lines[i])) {
+        const ansMatch = lines[i].match(/^([A-Da-d])[.)\s]\s*(.+)/);
+        const correctMatch = lines[i].match(/^đáp\s*án\s*[:.)]?\s*([A-Da-d])/i);
+        if (ansMatch) { answers.push(ansMatch[2].trim()); }
+        else if (correctMatch) { correct = correctMatch[1].toUpperCase().charCodeAt(0) - 65; }
+        i++;
+      }
+      if (answers.length === 4) {
+        questions.push({ question: questionText, answers, correct: correct < 4 ? correct : 0 });
+      } else if (answers.length >= 2) {
+        while (answers.length < 4) answers.push('');
+        questions.push({ question: questionText, answers, correct: correct < 4 ? correct : 0 });
+      }
+    }
+    return questions;
+  };
+
+  const parseQuestionsFromCsv = (text) => {
+    const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+    const start = /câu hỏi|question/i.test(lines[0]) ? 1 : 0;
+    return lines.slice(start).map((line) => {
+      const cols = line.split(',');
+      const answers = [cols[1] ?? '', cols[2] ?? '', cols[3] ?? '', cols[4] ?? ''].map((c) => c.trim());
+      const correctLetter = (cols[5] ?? 'A').trim().toUpperCase();
+      const correct = Math.max(0, correctLetter.charCodeAt(0) - 65);
+      return { question: (cols[0] ?? '').trim(), answers, correct: correct < 4 ? correct : 0 };
+    }).filter((q) => q.question);
+  };
+
+  const handleQuizFileImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = '';
+    setFileImporting(true);
+    setFileImportError('');
+    try {
+      const ext = file.name.split('.').pop().toLowerCase();
+      let imported = [];
+      if (['xlsx', 'xls'].includes(ext)) {
+        imported = await parseQuestionsFromExcel(file);
+      } else if (ext === 'docx') {
+        imported = await parseQuestionsFromWord(file);
+      } else if (ext === 'csv') {
+        const text = await new Promise((res, rej) => {
+          const r = new FileReader(); r.onload = (e) => res(e.target.result); r.onerror = rej; r.readAsText(file, 'UTF-8');
+        });
+        imported = parseQuestionsFromCsv(text);
+      } else {
+        setFileImportError('Chỉ hỗ trợ file .xlsx, .xls, .docx hoặc .csv');
+        setFileImporting(false);
+        return;
+      }
+      if (imported.length === 0) {
+        setFileImportError('Không tìm thấy câu hỏi nào. Vui lòng kiểm tra định dạng file.');
+      } else {
+        setQuizForm((prev) => ({ ...prev, questions: imported }));
+        setShowPreview(false);
+        setFileImportError('');
+      }
+    } catch {
+      setFileImportError('Lỗi đọc file. Vui lòng kiểm tra định dạng file.');
+    }
+    setFileImporting(false);
+  };
+
+  const downloadQuizSampleExcel = () => {
+    const rows = [
+      ['Câu hỏi', 'Đáp án A', 'Đáp án B', 'Đáp án C', 'Đáp án D', 'Đáp án đúng (A/B/C/D)'],
+      ['2 + 2 = ?', '3', '4', '5', '6', 'B'],
+      ['Thủ đô Việt Nam là?', 'TP.HCM', 'Đà Nẵng', 'Hà Nội', 'Huế', 'C'],
+      ['$x^2 = 9$, nghiệm dương của x?', '2', '3', '4', '9', 'B'],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 40 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 22 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Quiz');
+    XLSX.writeFile(wb, 'quiz_mau.xlsx');
+  };
 
   // AI generation state (quiz)
   const [aiTopic, setAiTopic] = useState('');
@@ -403,6 +527,52 @@ CHÚ Ý: Chỉ trả về JSON thuần túy, không thêm bất kỳ text nào k
                     <option value="medium">Trung bình</option>
                     <option value="hard">Khó</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Import from file */}
+              <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-100">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2 text-emerald-700 font-medium">
+                    <FiUpload className="w-4 h-4" />
+                    Nhập câu hỏi từ file
+                  </div>
+                  <button
+                    type="button"
+                    onClick={downloadQuizSampleExcel}
+                    className="flex items-center gap-1.5 text-xs text-emerald-600 hover:text-emerald-700 font-medium"
+                  >
+                    <FiDownload className="w-3.5 h-3.5" />
+                    Tải file mẫu (.xlsx)
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => quizFileInputRef.current?.click()}
+                    disabled={fileImporting}
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  >
+                    {fileImporting
+                      ? <FiLoader className="w-4 h-4 animate-spin" />
+                      : <FiUpload className="w-4 h-4" />}
+                    {fileImporting ? 'Đang đọc...' : 'Chọn file'}
+                  </button>
+                  <span className="text-xs text-emerald-600">Hỗ trợ: .xlsx, .xls, .docx, .csv</span>
+                  <input
+                    type="file"
+                    ref={quizFileInputRef}
+                    onChange={handleQuizFileImport}
+                    accept=".xlsx,.xls,.docx,.csv"
+                    className="hidden"
+                  />
+                </div>
+                {fileImportError && (
+                  <p className="mt-2 text-sm text-red-600">{fileImportError}</p>
+                )}
+                <div className="mt-2 text-xs text-emerald-700 space-y-0.5">
+                  <p><strong>Excel/CSV:</strong> Cột 1: Câu hỏi | Cột 2–5: Đáp án A–D | Cột 6: Đáp án đúng (A/B/C/D)</p>
+                  <p><strong>Word:</strong> Câu 1: ... → A. ... B. ... C. ... D. ... → Đáp án: B</p>
                 </div>
               </div>
 

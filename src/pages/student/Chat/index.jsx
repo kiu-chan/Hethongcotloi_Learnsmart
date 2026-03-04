@@ -7,8 +7,19 @@ import {
   FiBook,
   FiHelpCircle,
   FiTrash2,
+  FiPaperclip,
+  FiX,
+  FiFileText,
 } from 'react-icons/fi';
 import { IoSparkles } from 'react-icons/io5';
+import mammoth from 'mammoth';
+import * as XLSX from 'xlsx';
+import * as pdfjsLib from 'pdfjs-dist';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url,
+).toString();
 
 const openai = new OpenAI({
   apiKey: import.meta.env.VITE_OPENAI_API_KEY || '',
@@ -61,9 +72,11 @@ const StudentChat = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState([]);
   const chatRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const scrollToBottom = () => {
     const container = messagesContainerRef.current;
@@ -76,27 +89,142 @@ const StudentChat = () => {
     scrollToBottom();
   }, [messages, isLoading]);
 
-  const sendMessage = async (text) => {
-    if (!text.trim() || isLoading) return;
+  const readFileAsText = (file) =>
+    new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = (e) => res(e.target.result);
+      r.onerror = () => rej(new Error('Lỗi đọc file'));
+      r.readAsText(file, 'UTF-8');
+    });
 
-    const userMessage = { role: 'user', text: text.trim(), timestamp: Date.now() };
+  const readFileAsDataUrl = (file) =>
+    new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = (e) => res(e.target.result);
+      r.onerror = () => rej(new Error('Lỗi đọc file'));
+      r.readAsDataURL(file);
+    });
+
+  const readFileAsArrayBuffer = (file) =>
+    new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = (e) => res(e.target.result);
+      r.onerror = () => rej(new Error('Lỗi đọc file'));
+      r.readAsArrayBuffer(file);
+    });
+
+  const extractPdfText = async (file) => {
+    const ab = await readFileAsArrayBuffer(file);
+    const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+    let text = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map((item) => item.str).join(' ') + '\n';
+    }
+    return text;
+  };
+
+  const handleFileSelect = async (e) => {
+    const selected = Array.from(e.target.files);
+    if (!selected.length) return;
+    e.target.value = '';
+
+    const processed = await Promise.all(
+      selected.map(async (file) => {
+        const name = file.name;
+        const ext = name.split('.').pop().toLowerCase();
+        try {
+          if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext)) {
+            const dataUrl = await readFileAsDataUrl(file);
+            return { name, kind: 'image', dataUrl, preview: dataUrl };
+          }
+          if (['txt', 'md', 'js', 'ts', 'jsx', 'tsx', 'py', 'java', 'c', 'cpp', 'html', 'css', 'json', 'csv'].includes(ext)) {
+            const textContent = await readFileAsText(file);
+            return { name, kind: 'text', textContent, preview: null };
+          }
+          if (ext === 'pdf') {
+            const textContent = await extractPdfText(file);
+            return { name, kind: 'pdf', textContent, preview: null };
+          }
+          if (ext === 'docx') {
+            const ab = await readFileAsArrayBuffer(file);
+            const result = await mammoth.extractRawText({ arrayBuffer: ab });
+            return { name, kind: 'docx', textContent: result.value, preview: null };
+          }
+          if (['xlsx', 'xls'].includes(ext)) {
+            const ab = await readFileAsArrayBuffer(file);
+            const wb = XLSX.read(ab, { type: 'array' });
+            const text = wb.SheetNames.map((sn) => {
+              const csv = XLSX.utils.sheet_to_csv(wb.Sheets[sn]);
+              return `[Sheet: ${sn}]\n${csv}`;
+            }).join('\n\n');
+            return { name, kind: 'xlsx', textContent: text, preview: null };
+          }
+          const textContent = await readFileAsText(file);
+          return { name, kind: 'text', textContent, preview: null };
+        } catch {
+          return { name, kind: 'error', textContent: '', preview: null };
+        }
+      }),
+    );
+
+    setAttachedFiles((prev) => [...prev, ...processed.filter((f) => f.kind !== 'error')]);
+  };
+
+  const removeAttachment = (index) => {
+    setAttachedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const sendMessage = async (text, files = []) => {
+    if ((!text.trim() && files.length === 0) || isLoading) return;
+
+    const userMessage = {
+      role: 'user',
+      text: text.trim(),
+      attachments: files.map((f) => ({ name: f.name, kind: f.kind, preview: f.preview })),
+      timestamp: Date.now(),
+    };
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
+    setAttachedFiles([]);
     if (inputRef.current) {
       inputRef.current.style.height = '44px';
     }
     setIsLoading(true);
 
     try {
+      const history = messages
+        .filter((m) => m.role === 'user' || m.role === 'ai')
+        .map((m) => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
+
+      const hasImages = files.some((f) => f.kind === 'image');
+      const textDocs = files.filter((f) => f.kind !== 'image');
+
+      let fullText = text.trim();
+      if (textDocs.length > 0) {
+        const docBlock = textDocs
+          .map((f) => `\n---\n**File đính kèm: ${f.name}**\n\`\`\`\n${f.textContent}\n\`\`\``)
+          .join('\n');
+        fullText = (fullText ? fullText + '\n' : 'Hãy giúp mình hiểu nội dung file đính kèm sau:\n') + docBlock;
+      }
+
+      let lastContent;
+      if (hasImages) {
+        lastContent = [{ type: 'text', text: fullText || 'Hãy giúp mình hiểu hình ảnh đính kèm.' }];
+        files
+          .filter((f) => f.kind === 'image')
+          .forEach((f) => {
+            lastContent.push({ type: 'image_url', image_url: { url: f.dataUrl } });
+          });
+      } else {
+        lastContent = fullText;
+      }
+
       const openAIMessages = [
         { role: 'system', content: SYSTEM_INSTRUCTION },
-        ...messages
-          .filter((msg) => msg.role === 'user' || msg.role === 'ai')
-          .map((msg) => ({
-            role: msg.role === 'user' ? 'user' : 'assistant',
-            content: msg.text,
-          })),
-        { role: 'user', content: text.trim() },
+        ...history,
+        { role: 'user', content: lastContent },
       ];
       const response = await openai.chat.completions.create({
         model: 'gpt-4o',
@@ -104,8 +232,7 @@ const StudentChat = () => {
       });
       const aiText = response.choices[0].message.content;
 
-      const aiMessage = { role: 'ai', text: aiText, timestamp: Date.now() };
-      setMessages((prev) => [...prev, aiMessage]);
+      setMessages((prev) => [...prev, { role: 'ai', text: aiText, timestamp: Date.now() }]);
     } catch (error) {
       console.error('AI Chat error:', error);
       let errorText = 'Xin lỗi, mình gặp sự cố khi xử lý câu hỏi. Bạn thử hỏi lại nhé!';
@@ -114,14 +241,8 @@ const StudentChat = () => {
       }
       setMessages((prev) => [
         ...prev,
-        {
-          role: 'ai',
-          text: errorText,
-          timestamp: Date.now(),
-          isError: true,
-        },
+        { role: 'ai', text: errorText, timestamp: Date.now(), isError: true },
       ]);
-      // Reset chat để lần sau tạo lại với history đầy đủ
       chatRef.current = null;
     } finally {
       setIsLoading(false);
@@ -130,15 +251,16 @@ const StudentChat = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    sendMessage(input);
+    sendMessage(input, attachedFiles);
   };
 
   const handleSuggestionClick = (text) => {
-    sendMessage(text);
+    sendMessage(text, []);
   };
 
   const handleClearChat = () => {
     setMessages([]);
+    setAttachedFiles([]);
     chatRef.current = null;
   };
 
@@ -251,7 +373,25 @@ const StudentChat = () => {
                     }`}
                   >
                     {msg.role === 'user' ? (
-                      <p className="text-sm whitespace-pre-wrap break-words">{msg.text}</p>
+                      <div>
+                        {msg.attachments && msg.attachments.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mb-2">
+                            {msg.attachments.map((att, ai) => (
+                              <div key={ai} className="flex items-center gap-1 bg-blue-400/40 rounded-lg px-2 py-1 text-xs max-w-[180px]">
+                                {att.kind === 'image' ? (
+                                  <img src={att.preview} alt={att.name} className="w-16 h-16 object-cover rounded-md" />
+                                ) : (
+                                  <>
+                                    <FiFileText className="w-3 h-3 flex-shrink-0" />
+                                    <span className="truncate">{att.name}</span>
+                                  </>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {msg.text && <p className="text-sm whitespace-pre-wrap break-words">{msg.text}</p>}
+                      </div>
                     ) : (
                       <div className="text-sm leading-relaxed overflow-x-auto max-w-full">
                         <MathDisplay text={msg.text} block />
@@ -288,14 +428,56 @@ const StudentChat = () => {
         onSubmit={handleSubmit}
         className="bg-white border-t border-gray-200 px-4 py-3 flex-shrink-0"
       >
-        <div className="flex items-end gap-3">
+        {/* Attached file chips */}
+        {attachedFiles.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {attachedFiles.map((f, i) => (
+              <div key={i} className="flex items-center gap-1.5 bg-gray-100 border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-700 max-w-[200px]">
+                {f.kind === 'image' ? (
+                  <img src={f.preview} alt={f.name} className="w-5 h-5 rounded object-cover flex-shrink-0" />
+                ) : (
+                  <FiFileText className="w-3 h-3 flex-shrink-0" />
+                )}
+                <span className="truncate">{f.name}</span>
+                <button
+                  type="button"
+                  onClick={() => removeAttachment(i)}
+                  className="ml-0.5 text-gray-400 hover:text-red-500 flex-shrink-0"
+                >
+                  <FiX className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-end gap-2">
+          {/* File attach button */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isLoading}
+            className="flex items-center justify-center w-10 h-10 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-colors flex-shrink-0 disabled:opacity-40"
+            title="Đính kèm file (ảnh, PDF, Word, Excel, văn bản)"
+          >
+            <FiPaperclip size={18} />
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileSelect}
+            accept="image/*,.pdf,.docx,.xlsx,.xls,.txt,.md,.csv,.js,.ts,.jsx,.tsx,.py,.java,.html,.css,.json"
+            multiple
+            className="hidden"
+          />
+
           <div className="flex-1">
             <textarea
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Nhập câu hỏi của bạn..."
+              placeholder="Nhập câu hỏi hoặc đính kèm file..."
               rows={1}
               className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent max-h-32"
               style={{ minHeight: '44px' }}
@@ -308,7 +490,7 @@ const StudentChat = () => {
           </div>
           <button
             type="submit"
-            disabled={!input.trim() || isLoading}
+            disabled={(!input.trim() && attachedFiles.length === 0) || isLoading}
             className="flex items-center justify-center w-11 h-11 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl hover:from-blue-600 hover:to-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-shrink-0"
           >
             <FiSend size={18} />
