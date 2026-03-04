@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
-import { FiX, FiUpload, FiFileText, FiCheck, FiAlertCircle } from 'react-icons/fi';
-import { parseExamFromExcel } from './examExcel';
+import { FiX, FiUpload, FiFileText, FiCheck, FiAlertCircle, FiDownload, FiChevronDown } from 'react-icons/fi';
+import { parseExamFromExcel, parseExamFromWord, downloadExcelSample, downloadWordSample } from './examExcel';
 
 const API = '/api';
 
@@ -19,13 +19,17 @@ const ImportExamModal = ({ onClose, onImported }) => {
   const [parsing, setParsing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState('');
+  const [showSampleMenu, setShowSampleMenu] = useState(false);
 
   const handleFileSelect = async (e) => {
     const selectedFile = e.target.files[0];
     if (!selectedFile) return;
 
-    if (!selectedFile.name.match(/\.xlsx?$/i)) {
-      setError('Vui lòng chọn file Excel (.xlsx)');
+    const isExcel = selectedFile.name.match(/\.xlsx?$/i);
+    const isWord = selectedFile.name.match(/\.docx$/i);
+
+    if (!isExcel && !isWord) {
+      setError('Vui lòng chọn file Excel (.xlsx) hoặc Word (.docx)');
       return;
     }
 
@@ -34,7 +38,9 @@ const ImportExamModal = ({ onClose, onImported }) => {
     setParsing(true);
 
     try {
-      const data = await parseExamFromExcel(selectedFile);
+      const data = isExcel
+        ? await parseExamFromExcel(selectedFile)
+        : await parseExamFromWord(selectedFile);
       setParsedData(data);
     } catch (err) {
       setError(err.message);
@@ -84,14 +90,60 @@ const ImportExamModal = ({ onClose, onImported }) => {
     }
   };
 
+  const handleDownloadExcel = () => {
+    downloadExcelSample();
+    setShowSampleMenu(false);
+  };
+
+  const handleDownloadWord = async () => {
+    await downloadWordSample();
+    setShowSampleMenu(false);
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-2xl w-full p-8 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onClick={() => setShowSampleMenu(false)}>
+      <div className="bg-white rounded-2xl max-w-2xl w-full p-8 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">Tải đề thi từ Excel</h2>
+          <h2 className="text-2xl font-bold text-gray-800">Tải đề thi lên</h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
             <FiX className="w-6 h-6 text-gray-600" />
           </button>
+        </div>
+
+        {/* Sample Download Button */}
+        <div className="mb-5 flex items-center justify-between bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+          <div>
+            <p className="text-sm font-medium text-blue-800">Chưa có file mẫu?</p>
+            <p className="text-xs text-blue-600">Tải file mẫu về, điền thông tin và tải lên</p>
+          </div>
+          <div className="relative">
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowSampleMenu((v) => !v); }}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+            >
+              <FiDownload className="w-4 h-4" />
+              Tải file mẫu
+              <FiChevronDown className="w-4 h-4" />
+            </button>
+            {showSampleMenu && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 z-10 overflow-hidden">
+                <button
+                  onClick={handleDownloadExcel}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <span className="text-green-600 font-bold text-xs bg-green-100 px-1.5 py-0.5 rounded">XLS</span>
+                  File mẫu Excel (.xlsx)
+                </button>
+                <button
+                  onClick={handleDownloadWord}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <span className="text-blue-600 font-bold text-xs bg-blue-100 px-1.5 py-0.5 rounded">DOC</span>
+                  File mẫu Word (.docx)
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {error && (
@@ -113,7 +165,7 @@ const ImportExamModal = ({ onClose, onImported }) => {
               type="file"
               ref={fileInputRef}
               onChange={handleFileSelect}
-              accept=".xlsx,.xls"
+              accept=".xlsx,.xls,.docx"
               className="hidden"
             />
 
@@ -126,10 +178,14 @@ const ImportExamModal = ({ onClose, onImported }) => {
               <>
                 <FiUpload className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                 <p className="text-gray-700 font-medium mb-1">
-                  {file ? file.name : 'Kéo thả hoặc nhấn để chọn file Excel'}
+                  {file ? file.name : 'Kéo thả hoặc nhấn để chọn file'}
                 </p>
-                <p className="text-sm text-gray-500">
-                  Hỗ trợ file .xlsx - Dùng file đã tải xuống từ hệ thống để đồng bộ định dạng
+                <div className="flex items-center justify-center gap-2 mt-2">
+                  <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">.xlsx</span>
+                  <span className="text-xs font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">.docx</span>
+                </div>
+                <p className="text-sm text-gray-500 mt-2">
+                  Hỗ trợ file Excel và Word — Dùng file mẫu để đảm bảo định dạng đúng
                 </p>
               </>
             )}
