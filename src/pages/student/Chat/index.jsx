@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { useState, useRef, useEffect } from 'react';
+import OpenAI from 'openai';
 import { useAuth } from '../../../contexts/AuthContext';
 import MathDisplay from '../../../components/MathDisplay';
 import {
@@ -10,7 +10,10 @@ import {
 } from 'react-icons/fi';
 import { IoSparkles } from 'react-icons/io5';
 
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '');
+const openai = new OpenAI({
+  apiKey: import.meta.env.VITE_OPENAI_API_KEY || '',
+  dangerouslyAllowBrowser: true,
+});
 
 const SYSTEM_INSTRUCTION = `Bạn là trợ lý học tập AI thân thiện dành cho học sinh phổ thông Việt Nam. Tên bạn là "Trợ lý Learn Smart".
 
@@ -73,23 +76,6 @@ const StudentChat = () => {
     scrollToBottom();
   }, [messages, isLoading]);
 
-  const getOrCreateChat = useCallback((historyMessages) => {
-    if (chatRef.current) return chatRef.current;
-
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
-      systemInstruction: SYSTEM_INSTRUCTION,
-    });
-    const geminiHistory = historyMessages
-      .filter((msg) => msg.role === 'user' || msg.role === 'ai')
-      .map((msg) => ({
-        role: msg.role === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.text }],
-      }));
-    chatRef.current = model.startChat({ history: geminiHistory });
-    return chatRef.current;
-  }, []);
-
   const sendMessage = async (text) => {
     if (!text.trim() || isLoading) return;
 
@@ -102,10 +88,21 @@ const StudentChat = () => {
     setIsLoading(true);
 
     try {
-      const chat = getOrCreateChat(messages);
-      const result = await chat.sendMessage(text.trim());
-      const response = await result.response;
-      const aiText = response.text();
+      const openAIMessages = [
+        { role: 'system', content: SYSTEM_INSTRUCTION },
+        ...messages
+          .filter((msg) => msg.role === 'user' || msg.role === 'ai')
+          .map((msg) => ({
+            role: msg.role === 'user' ? 'user' : 'assistant',
+            content: msg.text,
+          })),
+        { role: 'user', content: text.trim() },
+      ];
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: openAIMessages,
+      });
+      const aiText = response.choices[0].message.content;
 
       const aiMessage = { role: 'ai', text: aiText, timestamp: Date.now() };
       setMessages((prev) => [...prev, aiMessage]);

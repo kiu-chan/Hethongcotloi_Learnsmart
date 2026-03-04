@@ -93,8 +93,8 @@ rsync -avz --progress \
   --exclude='src' \
   --exclude='.git' \
   --exclude='.env' \
-  dist/ server/ package.json \
-  ubuntu@<EC2-IP>:/var/www/nckh_tuyenquang/
+  dist server server.js package.json \
+  ubuntu@EC2-IP:/var/www/nckh_tuyenquang/
 ```
 
 ### 4. Tạo file .env trên EC2
@@ -184,7 +184,7 @@ rsync -avz --progress \
   --exclude='src' \
   --exclude='.git' \
   --exclude='.env' \
-  dist/ server/ package.json \
+  dist server server.js package.json \
   ubuntu@$EC2_IP:$REMOTE/
 
 echo "==> Restarting server..."
@@ -207,14 +207,11 @@ npm run build
 # 2. Upload lên EC2
 rsync -avz -e "ssh -i key.pem" \
   --exclude='node_modules' --exclude='src' --exclude='.git' --exclude='.env' \
-  dist/ server/ package.json \
-  ubuntu@<54.179.194.184>:/var/www/nckh_tuyenquang/
+  dist server server.js package.json \
+  ubuntu@54.179.194.184:/var/www/nckh_tuyenquang/
 
-# 3. SSH vào EC2 và restart
-ssh -i key.pem ubuntu@<54.179.194.184>
-cd /var/www/nckh_tuyenquang
-npm install --omit=dev
-pm2 restart nckh
+# 3. Restart server (gộp 1 lệnh)
+ssh -i key.pem ubuntu@54.179.194.184 "cd /var/www/nckh_tuyenquang && npm install --omit=dev && pm2 restart nckh"
 ```
 
 ---

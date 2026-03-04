@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { FiX, FiPlus, FiTrash2, FiUsers, FiLoader, FiZap, FiEye, FiEyeOff } from 'react-icons/fi';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 import { API_URL, getAuthHeaders } from './utils';
 import MathDisplay from '../../../components/MathDisplay';
 
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '');
+const openai = new OpenAI({
+  apiKey: import.meta.env.VITE_OPENAI_API_KEY || '',
+  dangerouslyAllowBrowser: true,
+});
 
 const CreateGameModal = ({ type, onClose, onCreated, editGame = null }) => {
   const isEdit = !!editGame;
@@ -131,14 +134,16 @@ const CreateGameModal = ({ type, onClose, onCreated, editGame = null }) => {
     setAiWheelLoading(true);
     setError('');
     try {
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
       const prompt = `Tạo ${aiWheelCount} câu hỏi ngắn dạng mở về chủ đề "${aiWheelTopic}" để giáo viên đặt câu hỏi trực tiếp cho học sinh trong lớp (không phải trắc nghiệm).
 Câu hỏi nên ngắn gọn, rõ ràng, kích thích tư duy.
 Trả về mảng JSON các chuỗi câu hỏi (KHÔNG có markdown, KHÔNG có \`\`\`json):
 ["Câu hỏi 1?","Câu hỏi 2?"...]
 Chỉ trả về JSON thuần túy, không thêm bất kỳ text nào khác.`;
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [{ role: 'user', content: prompt }],
+      });
+      const text = response.choices[0].message.content;
       const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const generated = JSON.parse(cleaned);
       if (Array.isArray(generated) && generated.length > 0) {
@@ -223,7 +228,6 @@ Chỉ trả về JSON thuần túy, không thêm bất kỳ text nào khác.`;
     setAiLoading(true);
     setError('');
     try {
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
       const difficultyText = aiDifficulty === 'easy' ? 'dễ' : aiDifficulty === 'medium' ? 'trung bình' : 'khó';
       const prompt = `Tạo ${aiCount} câu hỏi trắc nghiệm về chủ đề "${aiTopic}" cho học sinh, độ khó ${difficultyText}.
 Mỗi câu hỏi có 4 đáp án (A, B, C, D), chỉ 1 đáp án đúng.
@@ -244,8 +248,11 @@ Trong đó "correct" là index (0-3) của đáp án đúng.
 
 CHÚ Ý: Chỉ trả về JSON thuần túy, không thêm bất kỳ text nào khác.`;
 
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
+      const result = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [{ role: 'user', content: prompt }],
+      });
+      const text = result.choices[0].message.content;
       const generated = JSON.parse(sanitizeJSONText(text));
 
       if (Array.isArray(generated) && generated.length > 0) {

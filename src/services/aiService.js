@@ -1,12 +1,15 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
 
 // Configure PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
-// Khởi tạo Gemini AI
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '');
+// Khởi tạo OpenAI
+const openai = new OpenAI({
+  apiKey: import.meta.env.VITE_OPENAI_API_KEY || '',
+  dangerouslyAllowBrowser: true,
+});
 
 /**
  * Sanitize JSON text từ AI - loại bỏ ký tự điều khiển trong string literals
@@ -43,8 +46,6 @@ export const generateMultipleChoiceQuestions = async ({
   instructions = ''
 }) => {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
     const difficultyMap = {
       easy: 'dễ',
       medium: 'trung bình',
@@ -100,9 +101,11 @@ Trả về một mảng JSON với định dạng sau (KHÔNG có markdown, KHÔ
 CHÚ Ý: Chỉ trả về JSON thuần túy, không thêm bất kỳ text nào khác.
 `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    let text = response.text();
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: prompt }],
+    });
+    let text = response.choices[0].message.content;
 
     const questions = JSON.parse(sanitizeJSONText(text));
     return {
@@ -132,8 +135,6 @@ export const generateEssayQuestions = async ({
   instructions = ''
 }) => {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
     const difficultyMap = {
       easy: 'dễ',
       medium: 'trung bình',
@@ -184,9 +185,11 @@ Trả về một mảng JSON với định dạng sau (KHÔNG có markdown, KHÔ
 CHÚ Ý: Chỉ trả về JSON thuần túy, không thêm bất kỳ text nào khác.
 `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    let text = response.text();
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: prompt }],
+    });
+    let text = response.choices[0].message.content;
 
     const questions = JSON.parse(sanitizeJSONText(text));
     return {
@@ -287,8 +290,6 @@ export const summarizeDocument = async ({
   additionalInstructions = ''
 }) => {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
     const summaryTypeMap = {
       list: {
         name: 'Danh sách có số thứ tự',
@@ -349,9 +350,11 @@ LƯU Ý ĐẶC BIỆT CHO KHUNG SƯỜN GIÁO ÁN:
 CHÚ Ý: Chỉ trả về HTML thuần túy, không bọc trong markdown code block, không thêm giải thích.
 `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    let text = response.text();
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: prompt }],
+    });
+    let text = response.choices[0].message.content;
 
     // Loại bỏ markdown code block nếu AI vẫn wrap
     text = text.replace(/```html\n?/g, '').replace(/```\n?/g, '').trim();

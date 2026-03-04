@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FiX, FiPlus, FiTrash2, FiZap, FiLoader } from 'react-icons/fi';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 
 const API = '/api';
 const getAuthHeaders = () => {
@@ -8,7 +8,10 @@ const getAuthHeaders = () => {
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 };
 
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '');
+const openai = new OpenAI({
+  apiKey: import.meta.env.VITE_OPENAI_API_KEY || '',
+  dangerouslyAllowBrowser: true,
+});
 
 const CreateGameModal = ({ game, defaultType, onClose, onSaved }) => {
   const isEditing = !!game;
@@ -49,7 +52,6 @@ const CreateGameModal = ({ game, defaultType, onClose, onSaved }) => {
     setAiLoading(true);
     setError('');
     try {
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
       const prompt = type === 'sequence'
         ? `Tạo ${aiCount} bước theo thứ tự về chủ đề "${aiTopic}" cho học sinh.
 Mỗi bước gồm tên bước (front) và mô tả ngắn (back). Các bước phải theo đúng thứ tự logic.
@@ -61,8 +63,11 @@ Mỗi cặp gồm mặt trước (front) là câu hỏi/thuật ngữ và mặt 
 Trả về JSON array, KHÔNG kèm markdown:
 [{"front":"...","back":"..."}]`;
 
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
+      const result = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [{ role: 'user', content: prompt }],
+      });
+      const text = result.choices[0].message.content;
       const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const generated = JSON.parse(cleaned);
 
