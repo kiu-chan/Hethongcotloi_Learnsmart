@@ -1,4 +1,6 @@
 import express from 'express';
+import multer from 'multer';
+import XLSX from 'xlsx';
 import User from '../models/User.js';
 import Exam from '../models/Exam.js';
 import Game from '../models/Game.js';
@@ -8,6 +10,8 @@ import ExamSubmission from '../models/ExamSubmission.js';
 import Class from '../models/Class.js';
 import protect from '../middleware/auth.js';
 import authorize from '../middleware/role.js';
+
+const uploadMemory = multer({ storage: multer.memoryStorage() });
 
 const router = express.Router();
 
@@ -604,6 +608,145 @@ router.delete('/classes/:id/members/:userId', async (req, res) => {
     await cls.populate('students', 'name email avatar');
 
     res.json({ success: true, class: cls });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// GET /api/admin/classes/export - Xuất danh sách lớp học ra Excel
+router.get('/classes/export', async (req, res) => {
+  try {
+    const classes = await Class.find()
+      .populate('teachers', 'name email')
+      .populate('students', 'name email')
+      .sort({ name: 1 });
+
+    const rows = [];
+    for (const cls of classes) {
+      const teachers = cls.teachers || [];
+      const students = cls.students || [];
+      if (teachers.length === 0 && students.length === 0) {
+        rows.push({ 'Tên lớp': cls.name, 'Vai trò': '', 'Email': '', 'Họ và tên': '' });
+      } else {
+        for (const t of teachers) {
+          rows.push({ 'Tên lớp': cls.name, 'Vai trò': 'teacher', 'Email': t.email, 'Họ và tên': t.name });
+        }
+        for (const s of students) {
+          rows.push({ 'Tên lớp': cls.name, 'Vai trò': 'student', 'Email': s.email, 'Họ và tên': s.name });
+        }
+      }
+    }
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{ wch: 20 }, { wch: 12 }, { wch: 30 }, { wch: 25 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Danh sách lớp học');
+
+    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Disposition', 'attachment; filename="danh_sach_lop_hoc.xlsx"');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buffer);
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// POST /api/admin/classes/import - Nhập lớp học từ file Excel
+router.post('/classes/import', uploadMemory.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'Vui lòng chọn file Excel' });
+    }
+
+    const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+    if (rows.length === 0) {
+      return res.status(400).json({ message: 'File Excel không có dữ liệu' });
+    }
+
+    const stats = { classesCreated: 0, membersAdded: 0, usersCreated: 0, skipped: 0, errors: [] };
+    // Cache to avoid re-fetching same classes
+    const classCache = {};
+
+    const normalizeRole = (val) => {
+      const v = String(val).trim().toLowerCase();
+      if (v === 'teacher' || v === 'giáo viên' || v === 'gv') return 'teacher';
+      if (v === 'student' || v === 'học sinh' || v === 'hs') return 'student';
+      return null;
+    };
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNum = i + 2; // Excel row (header = 1)
+
+      const className = String(row['Tên lớp'] || '').trim();
+      const role = normalizeRole(row['Vai trò'] || '');
+      const email = String(row['Email'] || '').trim().toLowerCase();
+      const name = String(row['Họ và tên'] || '').trim();
+      const password = String(row['Mật khẩu'] || '').trim() || '12345678';
+
+      if (!className) {
+        stats.errors.push(`Dòng ${rowNum}: thiếu tên lớp`);
+        continue;
+      }
+      if (!email && !role) {
+        // Row có tên lớp nhưng không có thành viên → tạo lớp trống
+      } else {
+        if (!email) { stats.errors.push(`Dòng ${rowNum}: thiếu email`); continue; }
+        if (!role) { stats.errors.push(`Dòng ${rowNum}: vai trò không hợp lệ (dùng teacher/student)`); continue; }
+      }
+
+      // Tìm hoặc tạo lớp
+      if (!classCache[className]) {
+        let cls = await Class.findOne({ name: className });
+        if (!cls) {
+          cls = await Class.create({ name: className });
+          stats.classesCreated++;
+        }
+        classCache[className] = cls;
+      }
+      const cls = classCache[className];
+
+      if (!email) {
+        // Chỉ tạo lớp, không thêm thành viên
+        stats.skipped++;
+        continue;
+      }
+
+      // Tìm hoặc tạo user
+      let user = await User.findOne({ email });
+      if (!user) {
+        if (!name) {
+          stats.errors.push(`Dòng ${rowNum}: cần cột "Họ và tên" cho email mới ${email}`);
+          continue;
+        }
+        user = await User.create({ email, name, role, password });
+        stats.usersCreated++;
+      }
+
+      // Thêm thành viên vào lớp nếu chưa có
+      const uid = user._id.toString();
+      const inTeachers = cls.teachers.some((t) => t.toString() === uid);
+      const inStudents = cls.students.some((s) => s.toString() === uid);
+
+      if (role === 'teacher' && !inTeachers) {
+        cls.teachers.push(user._id);
+        await cls.save();
+        classCache[className] = cls;
+        stats.membersAdded++;
+      } else if (role === 'student' && !inStudents) {
+        cls.students.push(user._id);
+        await cls.save();
+        classCache[className] = cls;
+        stats.membersAdded++;
+      } else {
+        stats.skipped++;
+      }
+    }
+
+    res.json({ success: true, stats });
   } catch (error) {
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
