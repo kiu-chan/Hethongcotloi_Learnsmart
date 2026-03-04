@@ -1,19 +1,12 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import * as XLSX from 'xlsx';
+import { useState, useEffect, useCallback } from 'react';
 import {
   FiSearch,
   FiGrid,
   FiList,
-  FiPlus,
   FiDownload,
-  FiUpload,
   FiAward,
   FiTrendingUp,
   FiLoader,
-  FiX,
-  FiCheck,
-  FiAlertCircle,
-  FiFile,
   FiCalendar,
   FiEdit3,
   FiSave,
@@ -26,8 +19,8 @@ import {
 
 import StudentCard from './StudentCard';
 import StudentTable from './StudentTable';
-import AddStudentModal from './AddStudentModal';
 import StudentDetailModal from './StudentDetailModal';
+import HomeworkTab from './HomeworkTab';
 
 const API_URL = '/api/students';
 
@@ -40,11 +33,11 @@ const getAuthHeaders = () => {
 };
 
 const TeacherStudents = () => {
+  const [activeTab, setActiveTab] = useState('students'); // 'students' | 'homework'
   const [viewMode, setViewMode] = useState('grid');
   const [selectedClass, setSelectedClass] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
@@ -53,14 +46,7 @@ const TeacherStudents = () => {
   const [classes, setClasses] = useState([{ id: 'all', name: 'Tất cả', count: 0 }]);
   const [loading, setLoading] = useState(true);
 
-  // Import state
-  const [showImportModal, setShowImportModal] = useState(false);
-  const [importFile, setImportFile] = useState(null);
-  const [importData, setImportData] = useState([]);
-  const [importLoading, setImportLoading] = useState(false);
-  const [importResult, setImportResult] = useState(null);
   const [exportLoading, setExportLoading] = useState(false);
-  const fileInputRef = useRef(null);
 
   // Semester settings
   const [semesterStartDate, setSemesterStartDate] = useState('');
@@ -68,20 +54,26 @@ const TeacherStudents = () => {
   const [semesterInput, setSemesterInput] = useState('');
   const [semesterSaving, setSemesterSaving] = useState(false);
 
-  const fetchStudents = useCallback(async () => {
+  const fetchClassView = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       if (selectedClass !== 'all') params.append('className', selectedClass);
       if (selectedStatus !== 'all') params.append('status', selectedStatus);
       if (searchQuery) params.append('search', searchQuery);
 
-      const res = await fetch(`${API_URL}?${params}`, { headers: getAuthHeaders() });
+      const res = await fetch(`${API_URL}/class-view?${params}`, { headers: getAuthHeaders() });
       const data = await res.json();
       if (data.success) {
         setStudents(data.students);
+        setStatsData(data.stats);
+        const classItems = [
+          { id: 'all', name: 'Tất cả', count: data.stats.total },
+          ...(data.stats.classes || []).map((c) => ({ id: c.name, name: c.name, count: c.count })),
+        ];
+        setClasses(classItems);
       }
     } catch (err) {
-      console.error('Error fetching students:', err);
+      console.error('Error fetching class view:', err);
     }
   }, [selectedClass, selectedStatus, searchQuery]);
 
@@ -122,34 +114,17 @@ const TeacherStudents = () => {
     setSemesterSaving(false);
   };
 
-  const fetchStats = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_URL}/stats`, { headers: getAuthHeaders() });
-      const data = await res.json();
-      if (data.success) {
-        setStatsData(data.stats);
-        const classItems = [
-          { id: 'all', name: 'Tất cả', count: data.stats.total },
-          ...data.stats.classes.map((c) => ({ id: c.name, name: c.name, count: c.count })),
-        ];
-        setClasses(classItems);
-      }
-    } catch (err) {
-      console.error('Error fetching stats:', err);
-    }
-  }, []);
-
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      await Promise.all([fetchStudents(), fetchStats(), fetchSettings()]);
+      await Promise.all([fetchClassView(), fetchSettings()]);
       setLoading(false);
     };
     load();
-  }, [fetchStudents, fetchStats, fetchSettings]);
+  }, [fetchClassView, fetchSettings]);
 
   const refreshData = async () => {
-    await Promise.all([fetchStudents(), fetchStats()]);
+    await fetchClassView();
   };
 
   const handleDeleteStudent = async (id) => {
@@ -174,7 +149,6 @@ const TeacherStudents = () => {
     setShowDetailModal(true);
   };
 
-  // --- Export ---
   const handleExport = async () => {
     setExportLoading(true);
     try {
@@ -202,184 +176,6 @@ const TeacherStudents = () => {
       alert('Có lỗi khi xuất file. Vui lòng thử lại.');
     }
     setExportLoading(false);
-  };
-
-  // --- Import ---
-  const parseCSV = (text) => {
-    const lines = text.split('\n').filter((line) => line.trim());
-    if (lines.length < 2) return [];
-
-    const headers = lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, ''));
-    const headerMap = {
-      'Họ tên': 'name',
-      'Giới tính': 'gender',
-      'Ngày sinh': 'dateOfBirth',
-      'Lớp': 'className',
-      'Email': 'email',
-      'SĐT': 'phone',
-      'Địa chỉ': 'address',
-      'Phụ huynh': 'parentName',
-      'SĐT phụ huynh': 'parentPhone',
-      'Trạng thái': 'status',
-      'Ghi chú': 'notes',
-    };
-
-    const rows = [];
-    for (let i = 1; i < lines.length; i++) {
-      const values = [];
-      let current = '';
-      let inQuotes = false;
-
-      for (const char of lines[i]) {
-        if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-          values.push(current.trim());
-          current = '';
-        } else {
-          current += char;
-        }
-      }
-      values.push(current.trim());
-
-      const row = {};
-      headers.forEach((header, idx) => {
-        const key = headerMap[header] || header;
-        row[key] = values[idx] || '';
-      });
-
-      if (row.name && row.email) {
-        rows.push(row);
-      }
-    }
-
-    return rows;
-  };
-
-  const parseExcel = (buffer) => {
-    const wb = XLSX.read(buffer, { type: 'array' });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const raw = XLSX.utils.sheet_to_json(ws, { header: 1 });
-    if (raw.length < 2) return [];
-
-    const headers = raw[0].map((h) => String(h).trim());
-    const headerMap = {
-      'Họ tên': 'name',
-      'Giới tính': 'gender',
-      'Ngày sinh': 'dateOfBirth',
-      'Lớp': 'className',
-      'Email': 'email',
-      'SĐT': 'phone',
-      'Địa chỉ': 'address',
-      'Phụ huynh': 'parentName',
-      'SĐT phụ huynh': 'parentPhone',
-      'Ghi chú': 'notes',
-    };
-
-    const rows = [];
-    for (let i = 1; i < raw.length; i++) {
-      const values = raw[i];
-      if (!values || values.length === 0) continue;
-
-      const row = {};
-      headers.forEach((header, idx) => {
-        const key = headerMap[header] || header;
-        row[key] = values[idx] != null ? String(values[idx]).trim() : '';
-      });
-
-      if (row.name && row.email) {
-        rows.push(row);
-      }
-    }
-    return rows;
-  };
-
-  const handleFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    setImportFile(file);
-    setImportResult(null);
-
-    const reader = new FileReader();
-    const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
-
-    reader.onload = (evt) => {
-      if (isExcel) {
-        const parsed = parseExcel(evt.target.result);
-        setImportData(parsed);
-      } else {
-        const parsed = parseCSV(evt.target.result);
-        setImportData(parsed);
-      }
-    };
-
-    if (isExcel) {
-      reader.readAsArrayBuffer(file);
-    } else {
-      reader.readAsText(file, 'UTF-8');
-    }
-  };
-
-  const handleImport = async () => {
-    if (importData.length === 0) return;
-
-    setImportLoading(true);
-    setImportResult(null);
-
-    try {
-      const res = await fetch(`${API_URL}/import`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ students: importData }),
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        setImportResult(data.results);
-        await refreshData();
-      } else {
-        setImportResult({ success: 0, failed: importData.length, errors: [data.message] });
-      }
-    } catch {
-      setImportResult({ success: 0, failed: importData.length, errors: ['Lỗi kết nối server'] });
-    }
-    setImportLoading(false);
-  };
-
-  const handleDownloadTemplate = () => {
-    const headers = ['Họ tên', 'Giới tính', 'Ngày sinh', 'Lớp', 'Email', 'SĐT', 'Địa chỉ', 'Phụ huynh', 'SĐT phụ huynh', 'Ghi chú'];
-    const examples = [
-      ['Nguyễn Văn A', 'Nam', '2010-05-15', 'Lớp 10A1', 'nguyenvana@email.com', '0912345678', 'Hà Nội', 'Nguyễn Văn B', '0987654321', 'Học sinh giỏi'],
-      ['Trần Thị B', 'Nữ', '2010-08-20', 'Lớp 10A1; Lớp 10A2', 'tranthib@email.com', '0923456789', 'Tuyên Quang', 'Trần Văn C', '0976543210', 'Học 2 lớp'],
-    ];
-
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...examples]);
-
-    ws['!cols'] = [
-      { wch: 25 },  // Họ tên
-      { wch: 10 },  // Giới tính
-      { wch: 14 },  // Ngày sinh
-      { wch: 14 },  // Lớp
-      { wch: 28 },  // Email
-      { wch: 14 },  // SĐT
-      { wch: 25 },  // Địa chỉ
-      { wch: 22 },  // Phụ huynh
-      { wch: 14 },  // SĐT phụ huynh
-      { wch: 25 },  // Ghi chú
-    ];
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Mẫu nhập học sinh');
-    XLSX.writeFile(wb, 'mau_nhap_hoc_sinh.xlsx');
-  };
-
-  const closeImportModal = () => {
-    setShowImportModal(false);
-    setImportFile(null);
-    setImportData([]);
-    setImportResult(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const stats = [
@@ -413,10 +209,33 @@ const TeacherStudents = () => {
     },
   ];
 
+  // Kiểm tra giáo viên đã được phân công lớp chưa (sau khi load xong)
+  const hasNoClasses = !loading && classes.length <= 1 && students.length === 0 && !searchQuery && selectedClass === 'all' && selectedStatus === 'all';
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <FiLoader className="w-8 h-8 text-emerald-500 animate-spin" />
+      </div>
+    );
+  }
+
+  if (hasNoClasses) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">Quản lý học sinh</h1>
+          <p className="text-gray-600">Theo dõi và quản lý thông tin học sinh</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 p-16 text-center">
+          <div className="w-20 h-20 bg-blue-50 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <IoSchoolOutline className="w-10 h-10 text-blue-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">Chưa được phân công lớp nào</h3>
+          <p className="text-gray-500 max-w-sm mx-auto">
+            Bạn chưa được thêm vào lớp học nào. Vui lòng liên hệ quản trị viên để được phân công lớp.
+          </p>
+        </div>
       </div>
     );
   }
@@ -429,36 +248,42 @@ const TeacherStudents = () => {
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Quản lý học sinh</h1>
           <p className="text-gray-600">Theo dõi và quản lý thông tin học sinh</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all"
-          >
-            <FiUpload className="w-4 h-4" />
-            <span>Nhập từ file</span>
-          </button>
-          <button
-            onClick={handleExport}
-            disabled={exportLoading}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all disabled:opacity-50"
-          >
-            {exportLoading ? (
-              <FiLoader className="w-4 h-4 animate-spin" />
-            ) : (
-              <FiDownload className="w-4 h-4" />
-            )}
-            <span>Tải về Excel</span>
-          </button>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg shadow-emerald-500/25"
-          >
-            <FiPlus className="w-5 h-5" />
-            <span>Thêm học sinh</span>
-          </button>
-        </div>
+        {activeTab === 'students' && (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleExport}
+              disabled={exportLoading}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all disabled:opacity-50"
+            >
+              {exportLoading ? (
+                <FiLoader className="w-4 h-4 animate-spin" />
+              ) : (
+                <FiDownload className="w-4 h-4" />
+              )}
+              <span>Tải về Excel</span>
+            </button>
+          </div>
+        )}
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+        {[{ key: 'students', label: 'Học sinh' }, { key: 'homework', label: 'Bài tập' }].map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab.key ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Homework Tab */}
+      {activeTab === 'homework' && <HomeworkTab />}
+
+      {/* Students Tab Content */}
+      {activeTab === 'students' && <>
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, index) => {
@@ -630,7 +455,7 @@ const TeacherStudents = () => {
             <IoPersonOutline className="w-10 h-10 text-gray-400" />
           </div>
           <h3 className="text-lg font-semibold text-gray-800 mb-2">Không tìm thấy học sinh</h3>
-          <p className="text-gray-500 mb-6">Thử thay đổi bộ lọc hoặc thêm học sinh mới</p>
+          <p className="text-gray-500 mb-6">Thử thay đổi bộ lọc hoặc tìm kiếm</p>
           <button
             onClick={() => {
               setSearchQuery('');
@@ -644,14 +469,6 @@ const TeacherStudents = () => {
         </div>
       )}
 
-      {/* Add Student Modal */}
-      <AddStudentModal
-        show={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        classes={classes}
-        onSuccess={refreshData}
-      />
-
       {/* Student Detail Modal */}
       <StudentDetailModal
         show={showDetailModal}
@@ -662,157 +479,8 @@ const TeacherStudents = () => {
         classes={classes}
         semesterStartDate={semesterStartDate}
       />
+      </>}
 
-      {/* Import Modal */}
-      {showImportModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-8 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">Nhập học sinh từ file</h2>
-              <button
-                onClick={closeImportModal}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <FiX className="w-6 h-6 text-gray-600" />
-              </button>
-            </div>
-
-            {/* Download template */}
-            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-              <div className="flex items-start gap-3">
-                <FiFile className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-sm text-blue-800 font-medium mb-1">File mẫu Excel</p>
-                  <p className="text-xs text-blue-600 mb-2">
-                    Tải file mẫu để xem định dạng đúng. Các cột bắt buộc: Họ tên, Giới tính, Ngày sinh, Lớp, Email. Nhiều lớp phân cách bằng dấu chấm phẩy (;).
-                  </p>
-                  <button
-                    onClick={handleDownloadTemplate}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 text-xs font-medium rounded-lg transition-colors"
-                  >
-                    <FiDownload className="w-3.5 h-3.5" />
-                    Tải file mẫu
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* File upload */}
-            <div className="mb-6">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv,.xlsx,.xls"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full p-8 border-2 border-dashed border-gray-300 rounded-xl hover:border-emerald-400 hover:bg-emerald-50/50 transition-all text-center group"
-              >
-                <FiUpload className="w-10 h-10 text-gray-400 group-hover:text-emerald-500 mx-auto mb-3 transition-colors" />
-                <p className="text-sm font-medium text-gray-700 group-hover:text-emerald-700">
-                  {importFile ? importFile.name : 'Nhấn để chọn file CSV'}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">Hỗ trợ file .xlsx, .xls, .csv</p>
-              </button>
-            </div>
-
-            {/* Preview */}
-            {importData.length > 0 && !importResult && (
-              <div className="mb-6">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                  Xem trước ({importData.length} học sinh)
-                </h3>
-                <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-xl">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50 sticky top-0">
-                      <tr>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">#</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Họ tên</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Lớp</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Email</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Giới tính</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {importData.map((row, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50">
-                          <td className="px-3 py-2 text-gray-500">{idx + 1}</td>
-                          <td className="px-3 py-2 font-medium text-gray-800">{row.name}</td>
-                          <td className="px-3 py-2 text-gray-600">{row.className}</td>
-                          <td className="px-3 py-2 text-gray-600">{row.email}</td>
-                          <td className="px-3 py-2 text-gray-600">{row.gender}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Import result */}
-            {importResult && (
-              <div className="mb-6 space-y-3">
-                {importResult.success > 0 && (
-                  <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-                    <FiCheck className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                    <p className="text-sm text-emerald-700">
-                      Nhập thành công <span className="font-bold">{importResult.success}</span> học sinh
-                    </p>
-                  </div>
-                )}
-                {importResult.failed > 0 && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
-                    <div className="flex items-center gap-2 mb-2">
-                      <FiAlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-                      <p className="text-sm text-red-700">
-                        Thất bại <span className="font-bold">{importResult.failed}</span> dòng
-                      </p>
-                    </div>
-                    {importResult.errors && importResult.errors.length > 0 && (
-                      <div className="max-h-32 overflow-y-auto">
-                        {importResult.errors.map((err, idx) => (
-                          <p key={idx} className="text-xs text-red-600 mt-1">- {err}</p>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Actions */}
-            <div className="flex gap-3">
-              <button
-                onClick={closeImportModal}
-                className="flex-1 px-6 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-semibold text-gray-700 transition-colors"
-              >
-                {importResult ? 'Đóng' : 'Hủy'}
-              </button>
-              {!importResult && (
-                <button
-                  onClick={handleImport}
-                  disabled={importData.length === 0 || importLoading}
-                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all disabled:opacity-50"
-                >
-                  {importLoading ? (
-                    <>
-                      <FiLoader className="w-4 h-4 animate-spin" />
-                      Đang nhập...
-                    </>
-                  ) : (
-                    <>
-                      <FiUpload className="w-4 h-4" />
-                      Nhập {importData.length > 0 ? `${importData.length} học sinh` : ''}
-                    </>
-                  )}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

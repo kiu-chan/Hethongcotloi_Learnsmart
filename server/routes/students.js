@@ -6,6 +6,7 @@ import Game from '../models/Game.js';
 import Exam from '../models/Exam.js';
 import ExamSubmission from '../models/ExamSubmission.js';
 import TeacherSettings from '../models/TeacherSettings.js';
+import Class from '../models/Class.js';
 import protect from '../middleware/auth.js';
 import authorize from '../middleware/role.js';
 
@@ -61,6 +62,104 @@ router.put('/settings', async (req, res) => {
       { new: true, upsert: true }
     );
     res.json({ success: true, semesterStartDate: settings.semesterStartDate });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// GET /api/students/class-view - Lấy học sinh từ lớp được phân công (auto-sync Student profiles)
+router.get('/class-view', async (req, res) => {
+  try {
+    const { className, status, search } = req.query;
+    const teacherId = req.user._id;
+
+    // Lấy tất cả lớp mà giáo viên được phân công
+    const allMyClasses = await Class.find({ teachers: teacherId })
+      .populate('students', 'name email avatar')
+      .sort({ name: 1 });
+
+    if (allMyClasses.length === 0) {
+      return res.json({
+        success: true,
+        students: [],
+        stats: { total: 0, excellent: 0, avgScore: 0, avgAttendance: 0, classes: [] },
+      });
+    }
+
+    // Gom học sinh unique từ tất cả lớp: userId -> { user, classNames[] }
+    const studentMap = new Map();
+    allMyClasses.forEach((cls) => {
+      cls.students.forEach((user) => {
+        const key = user._id.toString();
+        if (!studentMap.has(key)) {
+          studentMap.set(key, { user, classNames: [cls.name] });
+        } else {
+          studentMap.get(key).classNames.push(cls.name);
+        }
+      });
+    });
+
+    // Auto-sync Student profiles: tạo mới nếu chưa có, cập nhật className
+    const upsertOps = Array.from(studentMap.values()).map(({ user, classNames }) =>
+      Student.findOneAndUpdate(
+        { user: user._id, teacher: teacherId },
+        {
+          $setOnInsert: {
+            name: user.name,
+            email: user.email,
+            status: 'active',
+            user: user._id,
+            teacher: teacherId,
+          },
+          $set: { className: classNames },
+        },
+        { upsert: true, new: false, runValidators: false }
+      )
+    );
+    await Promise.all(upsertOps);
+
+    // Lấy student IDs theo class filter
+    const allUserIds = Array.from(studentMap.keys());
+    let filteredUserIds = allUserIds;
+    if (className) {
+      const selectedClass = allMyClasses.find((c) => c.name === className);
+      filteredUserIds = selectedClass
+        ? selectedClass.students.map((s) => s._id.toString())
+        : [];
+    }
+
+    // Truy vấn Student profiles với filter
+    const filter = { user: { $in: filteredUserIds }, teacher: teacherId };
+    if (status) filter.status = status;
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const students = await Student.find(filter).sort({ createdAt: -1 });
+
+    // Stats dựa trên toàn bộ học sinh trong các lớp
+    const allStudents = await Student.find({ user: { $in: allUserIds }, teacher: teacherId });
+    const total = allStudents.length;
+    const excellent = allStudents.filter((s) => s.score >= 8.5).length;
+    const avgScore =
+      total > 0
+        ? Math.round((allStudents.reduce((s, p) => s + (p.score || 0), 0) / total) * 10) / 10
+        : 0;
+    const avgAttendance =
+      total > 0
+        ? Math.round(allStudents.reduce((s, p) => s + (p.attendance || 0), 0) / total)
+        : 0;
+
+    const classStats = allMyClasses.map((c) => ({ name: c.name, count: c.students.length }));
+
+    res.json({
+      success: true,
+      students,
+      stats: { total, excellent, avgScore, avgAttendance, classes: classStats },
+    });
   } catch (error) {
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }

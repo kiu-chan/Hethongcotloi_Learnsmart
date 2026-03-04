@@ -12,6 +12,7 @@ import AdminUsers from "../pages/admin/Users/index.jsx";
 import AdminExams from "../pages/admin/Exams/index.jsx";
 import AdminReports from "../pages/admin/Reports/index.jsx";
 import AdminSettings from "../pages/admin/Settings/index.jsx";
+import AdminClasses from "../pages/admin/Classes/index.jsx";
 import TeacherDashboard from "../pages/teacher/Dashboard/index.jsx";
 import StudentDashboard from "../pages/student/Dashboard/index.jsx";
 import DefaultLayout from "../components/Layout/DefaultLayout";
@@ -105,6 +106,12 @@ const privateRoutes = [
   {
     path: "/admin/reports",
     component: AdminReports,
+    layout: AdminLayout,
+    allowedRoles: ['admin']
+  },
+  {
+    path: "/admin/classes",
+    component: AdminClasses,
     layout: AdminLayout,
     allowedRoles: ['admin']
   },

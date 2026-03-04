@@ -5,6 +5,7 @@ import Game from '../models/Game.js';
 import Document from '../models/Document.js';
 import Notebook from '../models/Notebook.js';
 import ExamSubmission from '../models/ExamSubmission.js';
+import Class from '../models/Class.js';
 import protect from '../middleware/auth.js';
 import authorize from '../middleware/role.js';
 
@@ -464,6 +465,145 @@ router.get('/exams/:id', async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy đề thi' });
     }
     res.json({ success: true, exam });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// ─── CLASS ROUTES ─────────────────────────────────────────────
+
+// GET /api/admin/classes - Lấy danh sách lớp học
+router.get('/classes', async (req, res) => {
+  try {
+    const { search } = req.query;
+    const filter = {};
+    if (search) filter.name = { $regex: search, $options: 'i' };
+
+    const classes = await Class.find(filter)
+      .populate('teachers', 'name email avatar')
+      .populate('students', 'name email avatar')
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, classes });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// POST /api/admin/classes - Tạo lớp học mới
+router.post('/classes', async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ message: 'Tên lớp là bắt buộc' });
+    }
+
+    const existing = await Class.findOne({ name: name.trim() });
+    if (existing) {
+      return res.status(400).json({ message: 'Tên lớp đã tồn tại' });
+    }
+
+    const cls = await Class.create({ name: name.trim() });
+    await cls.populate('teachers', 'name email avatar');
+    await cls.populate('students', 'name email avatar');
+
+    res.status(201).json({ success: true, class: cls });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// PUT /api/admin/classes/:id - Đổi tên lớp
+router.put('/classes/:id', async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ message: 'Tên lớp là bắt buộc' });
+    }
+
+    const existing = await Class.findOne({ name: name.trim(), _id: { $ne: req.params.id } });
+    if (existing) {
+      return res.status(400).json({ message: 'Tên lớp đã tồn tại' });
+    }
+
+    const cls = await Class.findByIdAndUpdate(
+      req.params.id,
+      { name: name.trim() },
+      { new: true }
+    )
+      .populate('teachers', 'name email avatar')
+      .populate('students', 'name email avatar');
+
+    if (!cls) return res.status(404).json({ message: 'Không tìm thấy lớp học' });
+
+    res.json({ success: true, class: cls });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// DELETE /api/admin/classes/:id - Xóa lớp học
+router.delete('/classes/:id', async (req, res) => {
+  try {
+    const cls = await Class.findByIdAndDelete(req.params.id);
+    if (!cls) return res.status(404).json({ message: 'Không tìm thấy lớp học' });
+    res.json({ success: true, message: 'Đã xóa lớp học' });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// POST /api/admin/classes/:id/members - Thêm thành viên vào lớp (student hoặc teacher)
+router.post('/classes/:id/members', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ message: 'userId là bắt buộc' });
+
+    const user = await User.findById(userId).select('name email role avatar');
+    if (!user) return res.status(404).json({ message: 'Không tìm thấy người dùng' });
+
+    const cls = await Class.findById(req.params.id);
+    if (!cls) return res.status(404).json({ message: 'Không tìm thấy lớp học' });
+
+    if (user.role === 'teacher') {
+      if (cls.teachers.some((t) => t.toString() === userId)) {
+        return res.status(400).json({ message: 'Giáo viên đã có trong lớp này' });
+      }
+      cls.teachers.push(userId);
+    } else if (user.role === 'student') {
+      if (cls.students.some((s) => s.toString() === userId)) {
+        return res.status(400).json({ message: 'Học sinh đã có trong lớp này' });
+      }
+      cls.students.push(userId);
+    } else {
+      return res.status(400).json({ message: 'Chỉ có thể thêm giáo viên hoặc học sinh' });
+    }
+
+    await cls.save();
+    await cls.populate('teachers', 'name email avatar');
+    await cls.populate('students', 'name email avatar');
+
+    res.json({ success: true, class: cls });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// DELETE /api/admin/classes/:id/members/:userId - Xóa thành viên khỏi lớp
+router.delete('/classes/:id/members/:userId', async (req, res) => {
+  try {
+    const cls = await Class.findById(req.params.id);
+    if (!cls) return res.status(404).json({ message: 'Không tìm thấy lớp học' });
+
+    const { userId } = req.params;
+    cls.teachers = cls.teachers.filter((t) => t.toString() !== userId);
+    cls.students = cls.students.filter((s) => s.toString() !== userId);
+
+    await cls.save();
+    await cls.populate('teachers', 'name email avatar');
+    await cls.populate('students', 'name email avatar');
+
+    res.json({ success: true, class: cls });
   } catch (error) {
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }

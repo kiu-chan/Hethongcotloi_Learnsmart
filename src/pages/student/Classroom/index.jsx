@@ -11,6 +11,7 @@ import {
   FiPlay,
 } from 'react-icons/fi';
 import { IoSchoolOutline } from 'react-icons/io5';
+import HomeworkSection from './HomeworkSection';
 
 const API = '/api';
 
@@ -78,6 +79,8 @@ const StudentClassroom = () => {
   const [classroom, setClassroom] = useState(null);
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedClass, setSelectedClass] = useState('');
+  const [contentTab, setContentTab] = useState('exams'); // 'exams' | 'homework'
 
   useEffect(() => {
     const fetchData = async () => {
@@ -89,7 +92,13 @@ const StudentClassroom = () => {
         const classData = await classRes.json();
         const examsData = await examsRes.json();
 
-        if (classData.success) setClassroom(classData.classroom);
+        if (classData.success) {
+          setClassroom(classData.classroom);
+          const classes = Array.isArray(classData.classroom?.className)
+            ? classData.classroom.className
+            : [classData.classroom?.className].filter(Boolean);
+          setSelectedClass(classes[0] || '');
+        }
         if (examsData.success) setExams(examsData.exams);
       } catch (err) {
         console.error('Error fetching classroom data:', err);
@@ -103,6 +112,22 @@ const StudentClassroom = () => {
   const handleTakeExam = (examId) => {
     navigate(`/student/exam/${examId}`);
   };
+
+  const classNames = Array.isArray(classroom?.className)
+    ? classroom.className
+    : [classroom?.className].filter(Boolean);
+
+  const filteredClassmates = selectedClass
+    ? (classroom?.classmates || []).filter((m) =>
+        Array.isArray(m.className) ? m.className.includes(selectedClass) : m.className === selectedClass
+      )
+    : classroom?.classmates || [];
+
+  const filteredExams = selectedClass
+    ? exams.filter(
+        (e) => e.assignmentType === 'student' || (e.assignedClasses && e.assignedClasses.includes(selectedClass))
+      )
+    : exams;
 
   if (loading) {
     return (
@@ -130,6 +155,31 @@ const StudentClassroom = () => {
         <p className="text-gray-600">Xem thông tin lớp và làm bài tập</p>
       </div>
 
+      {/* Class Selector */}
+      {classNames.length > 1 && (
+        <div className="bg-white rounded-xl border border-gray-100 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <IoSchoolOutline className="w-4 h-4 text-gray-500" />
+            <span className="text-sm font-medium text-gray-600">Chọn lớp:</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {classNames.map((cn) => (
+              <button
+                key={cn}
+                onClick={() => setSelectedClass(cn)}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                  selectedClass === cn
+                    ? 'bg-blue-500 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {cn}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Class Info + Teacher */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Class Info */}
@@ -140,12 +190,17 @@ const StudentClassroom = () => {
             </div>
             <div>
               <h2 className="text-lg font-bold text-gray-800">Lớp của tôi</h2>
-              <p className="text-sm text-gray-500">{classroom.totalStudents} bạn cùng lớp</p>
+              <p className="text-sm text-gray-500">{filteredClassmates.length + 1} học sinh</p>
             </div>
           </div>
           <div className="flex flex-wrap gap-1.5 mb-3">
-            {(Array.isArray(classroom.className) ? classroom.className : [classroom.className]).map((cn) => (
-              <span key={cn} className="px-3 py-1 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg">
+            {classNames.map((cn) => (
+              <span
+                key={cn}
+                className={`px-3 py-1 text-sm font-medium rounded-lg ${
+                  cn === selectedClass ? 'bg-blue-500 text-white' : 'bg-blue-50 text-blue-700'
+                }`}
+              >
                 {cn}
               </span>
             ))}
@@ -183,16 +238,16 @@ const StudentClassroom = () => {
       </div>
 
       {/* Classmates */}
-      {classroom.classmates && classroom.classmates.length > 0 && (
+      {filteredClassmates.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-100 p-6">
           <div className="flex items-center gap-2 mb-4">
             <FiUsers className="w-5 h-5 text-gray-600" />
             <h2 className="text-lg font-bold text-gray-800">
-              Bạn cùng lớp ({classroom.classmates.length})
+              Bạn cùng lớp ({filteredClassmates.length})
             </h2>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {classroom.classmates.map((mate) => (
+            {filteredClassmates.map((mate) => (
               <div key={mate._id} className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
                 <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-medium text-sm">
                   {mate.name?.charAt(0)}
@@ -204,22 +259,36 @@ const StudentClassroom = () => {
         </div>
       )}
 
-      {/* Exams / Assignments */}
+      {/* Content Tabs */}
       <div>
-        <div className="flex items-center gap-2 mb-4">
-          <FiFileText className="w-5 h-5 text-gray-600" />
-          <h2 className="text-lg font-bold text-gray-800">Bài tập ({exams.length})</h2>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+            {[{ key: 'exams', label: 'Bài kiểm tra' }, { key: 'homework', label: 'Bài tập' }].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setContentTab(tab.key)}
+                className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${contentTab === tab.key ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {exams.length === 0 ? (
+        {/* Homework Tab */}
+        {contentTab === 'homework' && <HomeworkSection selectedClass={selectedClass} />}
+
+        {/* Exams Tab */}
+        {contentTab === 'exams' && <div>
+        {filteredExams.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-100 p-12 text-center">
             <FiFileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">Chưa có bài tập</h3>
-            <p className="text-gray-500">Giáo viên chưa giao bài tập nào cho bạn.</p>
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">Chưa có bài kiểm tra</h3>
+            <p className="text-gray-500">Giáo viên chưa giao bài kiểm tra nào cho bạn.</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {exams.map((exam) => {
+            {filteredExams.map((exam) => {
               const status = getSubmissionStatus(exam);
               const StatusIcon = status.icon;
               const isOverdue = exam.deadline && new Date(exam.deadline) < new Date();
@@ -324,6 +393,7 @@ const StudentClassroom = () => {
             })}
           </div>
         )}
+      </div>}
       </div>
     </div>
   );

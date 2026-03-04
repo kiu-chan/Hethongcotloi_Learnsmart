@@ -1,6 +1,7 @@
 import express from 'express';
 import Exam from '../models/Exam.js';
 import Student from '../models/Student.js';
+import Class from '../models/Class.js';
 import ExamSubmission from '../models/ExamSubmission.js';
 import protect from '../middleware/auth.js';
 import authorize from '../middleware/role.js';
@@ -68,15 +69,12 @@ router.get('/stats', async (req, res) => {
 // GET /api/exams/classes - Lấy danh sách lớp của giáo viên
 router.get('/classes', async (req, res) => {
   try {
-    const classes = await Student.aggregate([
-      { $match: { teacher: req.user._id, status: 'active' } },
-      { $unwind: '$className' },
-      { $group: { _id: '$className', count: { $sum: 1 } } },
-      { $sort: { _id: 1 } },
-    ]);
+    const classes = await Class.find({ teachers: req.user._id })
+      .select('name students')
+      .sort({ name: 1 });
     res.json({
       success: true,
-      classes: classes.map((c) => ({ name: c._id, count: c.count })),
+      classes: classes.map((c) => ({ name: c.name, count: c.students.length })),
     });
   } catch (error) {
     res.status(500).json({ message: 'Lỗi server', error: error.message });
@@ -90,10 +88,13 @@ router.get('/students-by-class', async (req, res) => {
     if (!className) {
       return res.status(400).json({ message: 'className là bắt buộc' });
     }
+    const cls = await Class.findOne({ name: className, teachers: req.user._id });
+    if (!cls) {
+      return res.json({ success: true, students: [] });
+    }
     const students = await Student.find({
+      user: { $in: cls.students },
       teacher: req.user._id,
-      className,
-      status: 'active',
     }).select('name email className');
     res.json({ success: true, students });
   } catch (error) {
@@ -232,11 +233,8 @@ router.post('/:id/assign', async (req, res) => {
       exam.assignedStudents = [];
       exam.className = assignedClasses.join(', ');
 
-      studentCount = await Student.countDocuments({
-        teacher: req.user._id,
-        className: { $in: assignedClasses },
-        status: 'active',
-      });
+      const assignedClassDocs = await Class.find({ name: { $in: assignedClasses }, teachers: req.user._id }).select('students');
+      studentCount = assignedClassDocs.reduce((sum, c) => sum + c.students.length, 0);
     } else {
       if (!assignedStudents || !assignedStudents.length) {
         return res.status(400).json({ message: 'Chưa chọn học sinh nào' });

@@ -31,13 +31,11 @@ const getAuthHeaders = () => {
 const formatDate = (date) =>
   new Date(date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-const StudentDetailModal = ({ show, student, onClose, onDelete, onUpdate, classes = [], semesterStartDate }) => {
+const StudentDetailModal = ({ show, student, onClose, onDelete, onUpdate, semesterStartDate }) => {
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [isNewClass, setIsNewClass] = useState(false);
-  const [newClassName, setNewClassName] = useState('');
 
   // Absent dates state
   const [absentDates, setAbsentDates] = useState([]);
@@ -82,10 +80,6 @@ const StudentDetailModal = ({ show, student, onClose, onDelete, onUpdate, classe
   };
 
   const handleSave = async () => {
-    if (formData.className.length === 0) {
-      setError('Vui lòng chọn ít nhất 1 lớp');
-      return;
-    }
     if (!formData.name.trim()) {
       setError('Họ tên không được để trống');
       return;
@@ -119,8 +113,6 @@ const StudentDetailModal = ({ show, student, onClose, onDelete, onUpdate, classe
   const handleClose = () => {
     setEditing(false);
     setError('');
-    setIsNewClass(false);
-    setNewClassName('');
     setAddingAbsent(false);
     setNewAbsentDate('');
     onClose();
@@ -189,8 +181,6 @@ const StudentDetailModal = ({ show, student, onClose, onDelete, onUpdate, classe
     }
     setRecalcLoading(false);
   };
-
-  const availableClasses = classes.filter((c) => c.id !== 'all');
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -284,128 +274,19 @@ const StudentDetailModal = ({ show, student, onClose, onDelete, onUpdate, classe
                 </div>
               </div>
 
-              {/* Class multi-select */}
+              {/* Class - read only (managed by admin) */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Lớp <span className="text-red-500">*</span>
-                  {formData.className.length > 0 && (
-                    <span className="ml-2 text-xs text-emerald-600 font-normal">
-                      ({formData.className.length} lớp đã chọn)
+                <label className="block text-sm font-medium text-gray-700 mb-2">Lớp</label>
+                <div className="flex flex-wrap gap-1.5 px-4 py-3 border border-gray-200 rounded-xl bg-gray-50 min-h-[48px]">
+                  {formData.className.length > 0 ? formData.className.map((cn) => (
+                    <span key={cn} className="px-2.5 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-lg">
+                      {cn}
                     </span>
-                  )}
-                </label>
-                <div className="border border-gray-200 rounded-xl overflow-hidden">
-                  {availableClasses.length > 0 && (
-                    <div className="max-h-36 overflow-y-auto p-3 space-y-1.5">
-                      {availableClasses.map((c) => (
-                        <label
-                          key={c.id}
-                          className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={formData.className.includes(c.name)}
-                            onChange={(e) => {
-                              setFormData((prev) => ({
-                                ...prev,
-                                className: e.target.checked
-                                  ? [...prev.className, c.name]
-                                  : prev.className.filter((cn) => cn !== c.name),
-                              }));
-                            }}
-                            className="w-4 h-4 rounded border-gray-300 text-emerald-500 focus:ring-emerald-500"
-                          />
-                          <span className="text-sm text-gray-700">{c.name}</span>
-                          <span className="text-xs text-gray-400">({c.count} HS)</span>
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                  {!isNewClass ? (
-                    <button
-                      type="button"
-                      onClick={() => setIsNewClass(true)}
-                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-blue-600 hover:bg-blue-50 border-t border-gray-200 transition-colors"
-                    >
-                      <FiPlus className="w-4 h-4" />
-                      Tạo lớp mới...
-                    </button>
-                  ) : (
-                    <div className="flex gap-2 p-3 border-t border-gray-200 bg-gray-50">
-                      <input
-                        type="text"
-                        value={newClassName}
-                        onChange={(e) => setNewClassName(e.target.value)}
-                        autoFocus
-                        className="flex-1 px-3 py-2 border border-blue-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Tên lớp mới, VD: Lớp 10A1"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            if (newClassName.trim() && !formData.className.includes(newClassName.trim())) {
-                              setFormData((prev) => ({
-                                ...prev,
-                                className: [...prev.className, newClassName.trim()],
-                              }));
-                            }
-                            setNewClassName('');
-                            setIsNewClass(false);
-                          }
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (newClassName.trim() && !formData.className.includes(newClassName.trim())) {
-                            setFormData((prev) => ({
-                              ...prev,
-                              className: [...prev.className, newClassName.trim()],
-                            }));
-                          }
-                          setNewClassName('');
-                          setIsNewClass(false);
-                        }}
-                        className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
-                      >
-                        Thêm
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsNewClass(false);
-                          setNewClassName('');
-                        }}
-                        className="px-2 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-600 transition-colors"
-                      >
-                        <FiX className="w-4 h-4" />
-                      </button>
-                    </div>
+                  )) : (
+                    <span className="text-sm text-gray-400 italic">Chưa được phân công lớp nào</span>
                   )}
                 </div>
-                {formData.className.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {formData.className.map((cn) => (
-                      <span
-                        key={cn}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-lg"
-                      >
-                        {cn}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              className: prev.className.filter((c) => c !== cn),
-                            }))
-                          }
-                          className="hover:text-red-500 transition-colors"
-                        >
-                          <FiX className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
+                <p className="text-xs text-gray-400 mt-1">Lớp học được quản lý bởi quản trị viên</p>
               </div>
 
               <div>
@@ -477,8 +358,6 @@ const StudentDetailModal = ({ show, student, onClose, onDelete, onUpdate, classe
                   onClick={() => {
                     setEditing(false);
                     setError('');
-                    setIsNewClass(false);
-                    setNewClassName('');
                     setFormData({
                       name: student.name || '',
                       gender: student.gender || 'Nam',

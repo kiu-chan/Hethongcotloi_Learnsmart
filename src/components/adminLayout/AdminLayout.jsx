@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { 
-  FiHome, 
-  FiUsers, 
+import {
+  FiHome,
+  FiUsers,
   FiSettings,
   FiLogOut,
   FiMenu,
@@ -16,6 +16,7 @@ import {
   IoStatsChartOutline,
   IoDocumentTextOutline
 } from 'react-icons/io5';
+import { MdOutlineClass } from 'react-icons/md';
 
 const AdminLayout = ({ children }) => {
   const location = useLocation();
@@ -28,6 +29,7 @@ const AdminLayout = ({ children }) => {
   const menuItems = [
     { path: '/admin', icon: FiHome, label: 'Tổng quan', exact: true },
     { path: '/admin/users', icon: FiUsers, label: 'Người dùng' },
+    { path: '/admin/classes', icon: MdOutlineClass, label: 'Lớp học' },
     { path: '/admin/exams', icon: IoDocumentTextOutline, label: 'Bài kiểm tra' },
     { path: '/admin/reports', icon: IoStatsChartOutline, label: 'Báo cáo' },
     { path: '/admin/settings', icon: FiSettings, label: 'Cài đặt' }

@@ -20,11 +20,9 @@ const studentSchema = new mongoose.Schema(
     gender: {
       type: String,
       enum: ['Nam', 'Nữ'],
-      required: [true, 'Giới tính là bắt buộc'],
     },
     dateOfBirth: {
       type: String,
-      required: [true, 'Ngày sinh là bắt buộc'],
     },
     className: {
       type: [String],
