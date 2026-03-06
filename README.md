@@ -1,8 +1,31 @@
 # Learn Smart - Hệ thống học tập thông minh
 
-Ứng dụng web hỗ trợ quản lý học sinh, thi cử, và trò chơi giáo dục.
+Ứng dụng web hỗ trợ quản lý học sinh, thi cử, và trò chơi giáo dục dành cho giáo viên và học sinh.
 
-**Stack:** React + Vite (frontend) · Express.js (backend) · MongoDB · Nginx · AWS EC2
+**Stack:** React 19 + Vite 7 (frontend) · Express.js 5 (backend) · MongoDB + Mongoose · Nginx · AWS EC2
+
+---
+
+## Kiến trúc tổng quan
+
+Dự án theo mô hình **Fullstack Monorepo** — frontend và backend nằm cùng một repository, nhưng tách biệt hoàn toàn về runtime:
+
+```
+[Trình duyệt]
+     │  HTTPS (port 443)
+     ▼
+  [Nginx]  ←── Reverse proxy + SSL termination
+     │  HTTP (localhost:3000)
+     ▼
+[Express.js Server]  ←── API + serve file tĩnh (dist/)
+     │
+     ▼
+  [MongoDB]  ←── Lưu trữ dữ liệu
+```
+
+- **Vite** build React thành file tĩnh (`dist/`), Express phục vụ luôn folder này.
+- Mọi request `/api/*` được Express xử lý; các route còn lại trả về `index.html` để React Router điều hướng phía client.
+- **PM2** giữ cho Node.js process chạy liên tục trên server.
 
 ---
 
@@ -10,17 +33,149 @@
 
 ```
 nckh_tuyenquang/
-├── src/              # React frontend
-├── server/           # Express.js backend
-│   ├── server.js
-│   ├── .env          # Biến môi trường (không commit)
-│   ├── config/
-│   ├── models/
+│
+├── src/                        # React frontend (SPA)
+│   ├── main.jsx                # Entry point — khởi tạo React, gắn AuthProvider
+│   ├── App.jsx                 # Root component, bọc Router
+│   ├── index.css               # Tailwind base styles
+│   │
 │   ├── routes/
-│   └── uploads/
-├── dist/             # React build output (tự sinh)
+│   │   └── index.jsx           # Định nghĩa toàn bộ routes của ứng dụng
+│   │
+│   ├── contexts/
+│   │   └── AuthContext.jsx     # Global state cho xác thực (user, token, role)
+│   │                           # Dùng React Context + localStorage để duy trì session
+│   │
+│   ├── components/             # UI components dùng chung
+│   │   ├── PrivateRoute.jsx    # Bảo vệ route, kiểm tra token + role
+│   │   ├── MathInput.jsx       # Input hỗ trợ LaTeX (dùng KaTeX)
+│   │   ├── MathDisplay.jsx     # Render công thức toán học
+│   │   ├── AIExamCreator.jsx   # Component tạo đề thi bằng AI
+│   │   ├── Layout/
+│   │   │   └── DefaultLayout.jsx   # Layout trang công khai (Home, About...)
+│   │   ├── adminLayout/
+│   │   │   └── AdminLayout.jsx     # Layout với sidebar dành cho Admin
+│   │   ├── teacherLayout/
+│   │   │   └── TeacherLayout.jsx   # Layout với sidebar dành cho Teacher
+│   │   └── studentLayout/
+│   │       └── StudentLayout.jsx   # Layout với sidebar dành cho Student
+│   │
+│   ├── services/
+│   │   └── aiService.js        # Gọi Gemini API (Google Generative AI) từ client
+│   │
+│   └── pages/                  # Các trang theo vai trò
+│       ├── Home/               # Trang chủ giới thiệu
+│       ├── About/              # Giới thiệu dự án
+│       ├── Features/           # Tính năng nổi bật
+│       ├── Guide/              # Hướng dẫn sử dụng
+│       ├── Contact/            # Liên hệ
+│       │
+│       ├── account/            # Xác thực người dùng
+│       │   ├── LoginPage.jsx
+│       │   ├── RegisterPage.jsx
+│       │   ├── ForgotPasswordPage.jsx
+│       │   └── ResetPasswordPage.jsx
+│       │
+│       ├── admin/              # Quản trị viên
+│       │   ├── AdminDashboard/ # Tổng quan hệ thống
+│       │   ├── Users/          # Quản lý tài khoản giáo viên/học sinh
+│       │   ├── Classes/        # Quản lý lớp học
+│       │   ├── Exams/          # Xem toàn bộ bài thi
+│       │   ├── Reports/        # Báo cáo thống kê
+│       │   └── Settings/       # Cấu hình hệ thống
+│       │
+│       ├── teacher/            # Giáo viên
+│       │   ├── Dashboard/      # Tổng quan lớp học của giáo viên
+│       │   ├── Students/       # Quản lý học sinh, xem chi tiết, giao bài tập
+│       │   ├── Exams/          # Tạo/sửa/chấm bài thi; import từ Excel/Word
+│       │   ├── Games/          # Tạo game giáo dục (Quiz, Vòng quay)
+│       │   ├── Documents/      # Quản lý tài liệu
+│       │   ├── Notebook/       # Ghi chú cá nhân
+│       │   ├── Statistics/     # Thống kê kết quả học sinh
+│       │   ├── Chat/           # Chat với AI (OpenAI)
+│       │   └── Settings/       # Cài đặt tài khoản giáo viên
+│       │
+│       └── student/            # Học sinh
+│           ├── Dashboard/      # Tổng quan bài tập, điểm số
+│           ├── Classroom/      # Lớp học, nộp bài tập
+│           ├── TakeExam/       # Làm bài thi trực tuyến
+│           ├── Games/          # Chơi game học tập (FlipCard, Memory, Sequence)
+│           ├── Chat/           # Chat với AI
+│           └── Settings/       # Cài đặt tài khoản học sinh
+│
+├── server/                     # Express.js backend
+│   ├── server.js               # Entry point: khởi tạo Express, kết nối DB, đăng ký routes
+│   ├── .env                    # Biến môi trường (không commit lên git)
+│   │
+│   ├── config/
+│   │   └── db.js               # Kết nối MongoDB qua Mongoose
+│   │
+│   ├── middleware/
+│   │   ├── auth.js             # Xác thực JWT — gắn user vào req.user
+│   │   └── role.js             # Phân quyền theo role (admin/teacher/student)
+│   │
+│   ├── models/                 # Mongoose schemas (cấu trúc dữ liệu MongoDB)
+│   │   ├── User.js             # Tài khoản (role: admin/teacher/student)
+│   │   ├── Student.js          # Hồ sơ học sinh (liên kết với User)
+│   │   ├── Class.js            # Lớp học
+│   │   ├── Exam.js             # Đề thi và câu hỏi
+│   │   ├── ExamSubmission.js   # Bài làm của học sinh
+│   │   ├── Homework.js         # Bài tập về nhà
+│   │   ├── HomeworkSubmission.js # Nộp bài tập
+│   │   ├── Game.js             # Game giáo dục
+│   │   ├── StudentGame.js      # Kết quả chơi game của học sinh
+│   │   ├── Document.js         # Tài liệu giáo viên
+│   │   ├── Notebook.js         # Ghi chú giáo viên
+│   │   └── TeacherSettings.js  # Cài đặt riêng của từng giáo viên
+│   │
+│   ├── routes/                 # Express API routes
+│   │   ├── auth.js             # POST /api/auth/login, /register, /google...
+│   │   ├── admin.js            # GET/POST /api/admin/* (chỉ role=admin)
+│   │   ├── students.js         # CRUD học sinh
+│   │   ├── exams.js            # CRUD đề thi, chấm điểm, import file
+│   │   ├── homework.js         # CRUD bài tập, nộp bài
+│   │   ├── games.js            # CRUD game, lưu kết quả
+│   │   ├── documents.js        # Upload/quản lý tài liệu
+│   │   ├── notebooks.js        # Ghi chú giáo viên
+│   │   ├── statistics.js       # Thống kê điểm số, tiến độ
+│   │   ├── dashboard.js        # Dữ liệu tổng quan dashboard
+│   │   ├── studentPortal.js    # API riêng cho học sinh (lấy bài, nộp bài)
+│   │   └── public.js           # Route không cần xác thực
+│   │
+│   └── uploads/                # File được upload (Excel, Word, ảnh...)
+│
+├── dist/                       # React build output — tự sinh bởi `npm run build`
+├── index.html                  # HTML template của Vite
+├── vite.config.js              # Cấu hình Vite (proxy API khi dev)
+├── tailwind.config.js          # Cấu hình Tailwind CSS
 └── package.json
 ```
+
+---
+
+## Phân quyền (Role-based Access Control)
+
+Hệ thống có 3 vai trò, mỗi vai trò truy cập vào khu vực riêng:
+
+| Vai trò | Đường dẫn | Quyền hạn |
+|---------|-----------|-----------|
+| **Admin** | `/admin/*` | Quản lý toàn bộ người dùng, lớp, bài thi, báo cáo |
+| **Teacher** | `/teacher/*` | Quản lý học sinh, tạo đề thi, giao bài, tạo game |
+| **Student** | `/student/*` | Làm bài thi, nộp bài tập, chơi game học tập |
+
+- Frontend: `PrivateRoute.jsx` kiểm tra token và role trước khi render trang.
+- Backend: middleware `auth.js` xác thực JWT, `role.js` kiểm tra quyền truy cập route.
+
+---
+
+## Tích hợp AI
+
+| Dịch vụ | Nơi dùng | Mục đích |
+|---------|----------|----------|
+| **OpenAI API** | Backend (`server/`) | Chat AI cho giáo viên và học sinh |
+| **Google Gemini** | Frontend (`src/services/aiService.js`) | Tạo câu hỏi thi tự động |
+
+---
 
 ---
 
