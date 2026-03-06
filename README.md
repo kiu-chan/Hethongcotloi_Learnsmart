@@ -172,8 +172,119 @@ Hệ thống có 3 vai trò, mỗi vai trò truy cập vào khu vực riêng:
 
 | Dịch vụ | Nơi dùng | Mục đích |
 |---------|----------|----------|
-| **OpenAI API** | Backend (`server/`) | Chat AI cho giáo viên và học sinh |
-| **Google Gemini** | Frontend (`src/services/aiService.js`) | Tạo câu hỏi thi tự động |
+| **OpenAI API** | Backend (`server/`) | Chat AI cho giáo viên và học sinh; hỗ trợ tạo câu hỏi thi tự động |
+
+---
+
+## Công nghệ sử dụng
+
+### Frontend
+
+| Công nghệ | Phiên bản | Mục đích |
+|-----------|-----------|----------|
+| **React** | 19 | Thư viện UI — xây dựng giao diện dạng component |
+| **Vite** | 7 | Build tool & dev server — khởi động nhanh, HMR |
+| **React Router DOM** | 7 | Điều hướng phía client (SPA routing) |
+| **Tailwind CSS** | 3 | Utility-first CSS — styling toàn bộ giao diện |
+| **Lucide React** | latest | Bộ icon nhất quán cho UI |
+| **React Icons** | 5 | Bộ icon mở rộng (Feather, Ionicons...) |
+| **KaTeX** | latest | Render công thức toán học dạng LaTeX |
+| **html2pdf.js** | latest | Xuất nội dung ra file PDF |
+| **xlsx** | latest | Đọc/ghi file Excel (.xlsx) |
+| **mammoth** | latest | Đọc và parse file Word (.docx) |
+| **DOMPurify** | latest | Sanitize HTML để tránh XSS |
+| **pdfjs-dist** | latest | Đọc và hiển thị file PDF trong trình duyệt |
+
+### Backend
+
+| Công nghệ | Phiên bản | Mục đích |
+|-----------|-----------|----------|
+| **Node.js** | 20+ | Runtime JavaScript phía server |
+| **Express** | 5 | Web framework — định nghĩa API routes |
+| **MongoDB** | 7 | NoSQL database — lưu trữ dữ liệu chính |
+| **Mongoose** | 9 | ODM — định nghĩa schema, thao tác MongoDB |
+| **JSON Web Token** | latest | Xác thực người dùng stateless |
+| **bcryptjs** | latest | Mã hóa mật khẩu trước khi lưu |
+| **Multer** | 2 | Xử lý upload file (Excel, Word, ảnh...) |
+| **OpenAI SDK** | 6 | Gọi OpenAI API cho tính năng Chat AI |
+| **Google Auth Library** | latest | Xác thực đăng nhập bằng tài khoản Google |
+| **dotenv** | latest | Quản lý biến môi trường từ file `.env` |
+| **CORS** | latest | Cho phép cross-origin request khi dev |
+| **docx** | latest | Tạo file Word (.docx) để xuất đề thi |
+
+### Hạ tầng & Triển khai
+
+| Công nghệ | Mục đích |
+|-----------|----------|
+| **AWS EC2** | Máy chủ cloud chạy ứng dụng |
+| **Nginx** | Reverse proxy, SSL termination, phục vụ file tĩnh |
+| **PM2** | Process manager — giữ Node.js chạy liên tục, tự restart khi crash |
+| **Let's Encrypt** | Chứng chỉ SSL miễn phí (HTTPS) |
+
+---
+
+## Các trang của ứng dụng
+
+### Trang công khai (không cần đăng nhập)
+
+| Trang | Đường dẫn | Mô tả |
+|-------|-----------|-------|
+| **Trang chủ** | `/` | Giới thiệu tổng quan về Learn Smart, CTA đăng ký/đăng nhập |
+| **Tính năng** | `/features` | Danh sách các tính năng nổi bật của hệ thống |
+| **Hướng dẫn** | `/guide` | Hướng dẫn sử dụng cho từng vai trò |
+| **Giới thiệu** | `/about` | Thông tin về dự án |
+| **Liên hệ** | `/contact` | Form liên hệ |
+
+### Trang xác thực
+
+| Trang | Đường dẫn | Mô tả |
+|-------|-----------|-------|
+| **Đăng nhập** | `/login` | Đăng nhập bằng email/mật khẩu hoặc tài khoản Google |
+| **Đăng ký** | `/register` | Tạo tài khoản mới (giáo viên hoặc học sinh) |
+| **Quên mật khẩu** | `/forgot-password` | Gửi email đặt lại mật khẩu |
+| **Đặt lại mật khẩu** | `/reset-password` | Nhập mật khẩu mới qua link email |
+
+### Trang Admin (`/admin/*`)
+
+> Chỉ tài khoản có role `admin` mới truy cập được.
+
+| Trang | Đường dẫn | Mô tả |
+|-------|-----------|-------|
+| **Tổng quan** | `/admin` | Dashboard hiển thị thống kê toàn hệ thống: tổng người dùng, giáo viên, học sinh, đề thi, tài liệu, trò chơi; hoạt động gần đây; cảnh báo hệ thống |
+| **Người dùng** | `/admin/users` | Xem, tìm kiếm, thêm/xóa tài khoản giáo viên và học sinh |
+| **Lớp học** | `/admin/classes` | Quản lý toàn bộ lớp học trong hệ thống |
+| **Bài thi** | `/admin/exams` | Xem tất cả đề thi của mọi giáo viên |
+| **Báo cáo** | `/admin/reports` | Thống kê kết quả học tập, biểu đồ điểm số toàn hệ thống |
+| **Cài đặt** | `/admin/settings` | Cấu hình hệ thống |
+
+### Trang Giáo viên (`/teacher/*`)
+
+> Chỉ tài khoản có role `teacher` mới truy cập được.
+
+| Trang | Đường dẫn | Mô tả |
+|-------|-----------|-------|
+| **Tổng quan** | `/teacher/dashboard` | Dashboard cá nhân: số học sinh, tài liệu, đề thi, trò chơi; hoạt động gần đây; lịch thi sắp tới; thao tác nhanh |
+| **Học sinh** | `/teacher/students` | Quản lý danh sách học sinh, xem chi tiết hồ sơ, theo dõi tiến độ, giao bài tập |
+| **Đề thi** | `/teacher/exams` | Tạo đề thi thủ công hoặc bằng AI; import từ file Excel/Word; xuất đề; phân công thi cho học sinh; chấm điểm bài làm |
+| **Trò chơi** | `/teacher/games` | Tạo và quản lý game học tập: Quiz trắc nghiệm, Vòng quay may mắn |
+| **Tài liệu** | `/teacher/documents` | Upload và quản lý tài liệu giảng dạy (PDF, Word, ảnh...) |
+| **Ghi chú** | `/teacher/notebook` | Ghi chú cá nhân, hỗ trợ AI tóm tắt tài liệu |
+| **Thống kê** | `/teacher/statistics` | Biểu đồ và bảng thống kê kết quả học tập của học sinh |
+| **Chat AI** | `/teacher/chat` | Trợ lý AI (OpenAI) hỗ trợ soạn bài, tạo câu hỏi, giải đáp |
+| **Cài đặt** | `/teacher/settings` | Thông tin tài khoản, đổi mật khẩu |
+
+### Trang Học sinh (`/student/*`)
+
+> Chỉ tài khoản có role `student` mới truy cập được.
+
+| Trang | Đường dẫn | Mô tả |
+|-------|-----------|-------|
+| **Tổng quan** | `/student/dashboard` | Dashboard cá nhân: tổng đề thi được giao, số chưa làm, đã hoàn thành, điểm trung bình; đề thi sắp đến hạn; bài đã nộp gần đây |
+| **Lớp học** | `/student/classroom` | Xem đề thi và bài tập được giao; nộp bài tập; theo dõi trạng thái chấm điểm |
+| **Làm bài thi** | `/student/exam/:id` | Giao diện làm bài thi trực tuyến: đếm giờ, chọn đáp án, nộp bài |
+| **Trò chơi** | `/student/games` | Chơi các game học tập do giáo viên tạo: FlipCard (lật thẻ), Memory (ghi nhớ), Sequence (sắp xếp) |
+| **Chat AI** | `/student/chat` | Trợ lý AI (OpenAI) hỗ trợ học tập, giải bài, giải thích kiến thức |
+| **Cài đặt** | `/student/settings` | Thông tin tài khoản, đổi mật khẩu |
 
 ---
 
