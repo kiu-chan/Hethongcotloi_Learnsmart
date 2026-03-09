@@ -64,13 +64,13 @@ const features = [
     title: 'Công cụ giáo viên',
     description: 'Bộ công cụ toàn diện hỗ trợ công việc giảng dạy hàng ngày',
     color: 'from-pink-500 to-rose-500',
-    items: ['SGK', 'Soạn giảng án', 'Ra câu hỏi', 'Làm đề', 'Kế hoạch']
+    items: ['SGK', 'Soạn giáo án', 'Ra câu hỏi', 'Làm đề', 'Kế hoạch']
   }
 ];
 
 const teacherTools = [
   { icon: IoDocumentTextOutline, title: 'Tóm tắt tài liệu/SGK', color: '#3B82F6' },
-  { icon: IoCreateOutline, title: 'Soạn giảng án', color: '#10B981' },
+  { icon: IoCreateOutline, title: 'Soạn giáo án', color: '#10B981' },
   { icon: IoBulbOutline, title: 'Ra câu hỏi theo mức độ', color: '#F59E0B' },
   { icon: IoClipboardOutline, title: 'Làm đề kiểm tra', color: '#8B5CF6' },
   { icon: IoGameControllerOutline, title: 'Thiết kế trò chơi/hoạt động', color: '#EC4899' },

@@ -9,9 +9,128 @@ import {
   FiAlertCircle,
   FiCheckCircle,
   FiPlay,
+  FiDownload,
+  FiFile,
 } from 'react-icons/fi';
-import { IoSchoolOutline } from 'react-icons/io5';
+import { IoSchoolOutline, IoDocumentTextOutline } from 'react-icons/io5';
 import HomeworkSection from './HomeworkSection';
+
+// ==================== SHARED DOCUMENTS SECTION ====================
+const SharedDocumentsSection = ({ selectedClass }) => {
+  const [documents, setDocuments] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDocs = async () => {
+      setLoading(true);
+      try {
+        const token = localStorage.getItem('authToken');
+        const res = await fetch('/api/student-portal/documents', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (data.success) setDocuments(data.documents);
+      } catch (err) {
+        console.error('Error fetching shared documents:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDocs();
+  }, []);
+
+  const handleDownload = async (id) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`/api/student-portal/documents/${id}/download`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const contentDisposition = res.headers.get('Content-Disposition');
+      let filename = 'download';
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="?(.+)"?/);
+        if (match) filename = match[1];
+      }
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error downloading:', err);
+    }
+  };
+
+  const getFileColor = (type) => {
+    switch (type) {
+      case 'pdf': return 'text-red-500 bg-red-50';
+      case 'docx': case 'doc': return 'text-blue-500 bg-blue-50';
+      case 'pptx': case 'ppt': return 'text-orange-500 bg-orange-50';
+      case 'xlsx': case 'xls': return 'text-green-500 bg-green-50';
+      default: return 'text-gray-500 bg-gray-50';
+    }
+  };
+
+  const filtered = selectedClass
+    ? documents.filter((d) =>
+        !d.sharedClasses?.length || d.sharedClasses.includes(selectedClass)
+      )
+    : documents;
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-8">
+        <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (filtered.length === 0) {
+    return (
+      <div className="text-center py-10">
+        <IoDocumentTextOutline className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+        <p className="text-sm text-gray-400">Giáo viên chưa chia sẻ tài liệu nào</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {filtered.map((doc) => {
+        const colorClass = getFileColor(doc.type);
+        return (
+          <div key={doc._id} className="bg-white rounded-xl border border-gray-100 p-4 hover:shadow-sm transition-shadow">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${colorClass}`}>
+                <FiFile className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-gray-800 text-sm truncate">{doc.name}</p>
+                <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400">
+                  <span className="uppercase font-medium">{doc.type}</span>
+                  <span>{doc.formattedSize}</span>
+                  <span>{new Date(doc.createdAt).toLocaleDateString('vi-VN')}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => handleDownload(doc._id)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg transition-colors flex-shrink-0"
+              >
+                <FiDownload className="w-3.5 h-3.5" />
+                Tải về
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 const API = '/api';
 
@@ -80,7 +199,7 @@ const StudentClassroom = () => {
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState('');
-  const [contentTab, setContentTab] = useState('exams'); // 'exams' | 'homework'
+  const [contentTab, setContentTab] = useState('exams'); // 'exams' | 'homework' | 'documents'
 
   useEffect(() => {
     const fetchData = async () => {
@@ -263,7 +382,7 @@ const StudentClassroom = () => {
       <div>
         <div className="flex items-center justify-between mb-4">
           <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
-            {[{ key: 'exams', label: 'Bài kiểm tra' }, { key: 'homework', label: 'Bài tập' }].map((tab) => (
+            {[{ key: 'exams', label: 'Bài kiểm tra' }, { key: 'homework', label: 'Bài tập' }, { key: 'documents', label: 'Tài liệu' }].map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setContentTab(tab.key)}
@@ -277,6 +396,9 @@ const StudentClassroom = () => {
 
         {/* Homework Tab */}
         {contentTab === 'homework' && <HomeworkSection selectedClass={selectedClass} />}
+
+        {/* Documents Tab */}
+        {contentTab === 'documents' && <SharedDocumentsSection selectedClass={selectedClass} />}
 
         {/* Exams Tab */}
         {contentTab === 'exams' && <div>

@@ -88,10 +88,7 @@ router.get('/stats', async (req, res) => {
         { $match: { teacher: teacherId } },
         { $group: { _id: null, totalSize: { $sum: '$size' } } },
       ]),
-      Document.aggregate([
-        { $match: { teacher: teacherId } },
-        { $group: { _id: null, totalShared: { $sum: '$sharedWith' } } },
-      ]),
+      Document.countDocuments({ teacher: teacherId, 'sharedClasses.0': { $exists: true } }),
       Document.aggregate([
         { $match: { teacher: teacherId } },
         { $group: { _id: '$category', count: { $sum: 1 } } },
@@ -99,7 +96,7 @@ router.get('/stats', async (req, res) => {
     ]);
 
     const totalSize = sizeResult[0]?.totalSize || 0;
-    const totalShared = shareResult[0]?.totalShared || 0;
+    const totalShared = shareResult || 0;
 
     const categoryCounts = {};
     categoryResult.forEach((c) => {
@@ -171,6 +168,26 @@ router.put('/:id', async (req, res) => {
     if (!doc) {
       return res.status(404).json({ message: 'Không tìm thấy tài liệu' });
     }
+    res.json({ success: true, document: doc });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// PATCH /api/documents/:id/share - Chia sẻ tài liệu cho lớp học
+router.patch('/:id/share', async (req, res) => {
+  try {
+    const { classNames } = req.body;
+    if (!Array.isArray(classNames)) {
+      return res.status(400).json({ message: 'classNames phải là mảng' });
+    }
+    const doc = await Document.findOne({ _id: req.params.id, teacher: req.user._id });
+    if (!doc) {
+      return res.status(404).json({ message: 'Không tìm thấy tài liệu' });
+    }
+    doc.sharedClasses = classNames;
+    doc.sharedWith = classNames.length;
+    await doc.save();
     res.json({ success: true, document: doc });
   } catch (error) {
     res.status(500).json({ message: 'Lỗi server', error: error.message });

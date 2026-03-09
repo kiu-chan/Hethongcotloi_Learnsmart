@@ -22,6 +22,7 @@ const documentSchema = new mongoose.Schema(
     filePath: { type: String, required: true },
     isFavorite: { type: Boolean, default: false },
     sharedWith: { type: Number, default: 0 },
+    sharedClasses: { type: [String], default: [] },
     teacher: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

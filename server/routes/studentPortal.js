@@ -11,6 +11,7 @@ import StudentGame from '../models/StudentGame.js';
 import Homework from '../models/Homework.js';
 import HomeworkSubmission from '../models/HomeworkSubmission.js';
 import User from '../models/User.js';
+import Document from '../models/Document.js';
 import protect from '../middleware/auth.js';
 import authorize from '../middleware/role.js';
 
@@ -724,6 +725,61 @@ router.get('/homework/:id/submission', async (req, res) => {
     }
 
     res.json({ success: true, submission });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// ==================== DOCUMENTS ====================
+
+// GET /api/student-portal/documents - Tài liệu được chia sẻ cho lớp
+router.get('/documents', async (req, res) => {
+  try {
+    const classes = await getStudentClasses(req.user._id);
+    const classNames = classes.map((c) => c.name);
+    const teacherIds = [...new Set(classes.flatMap((c) => c.teachers.map((t) => t._id.toString())))];
+
+    if (classNames.length === 0) {
+      return res.json({ success: true, documents: [] });
+    }
+
+    const documents = await Document.find({
+      ...(teacherIds.length > 0 && { teacher: { $in: teacherIds } }),
+      sharedClasses: { $in: classNames },
+    })
+      .select('name originalName type size formattedSize sharedClasses createdAt filePath')
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, documents });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// GET /api/student-portal/documents/:id/download - Tải tài liệu được chia sẻ
+router.get('/documents/:id/download', async (req, res) => {
+  try {
+    const classes = await getStudentClasses(req.user._id);
+    const classNames = classes.map((c) => c.name);
+    const teacherIds = [...new Set(classes.flatMap((c) => c.teachers.map((t) => t._id.toString())))];
+
+    const doc = await Document.findOne({
+      _id: req.params.id,
+      ...(teacherIds.length > 0 && { teacher: { $in: teacherIds } }),
+      sharedClasses: { $in: classNames },
+    });
+
+    if (!doc) {
+      return res.status(404).json({ message: 'Không tìm thấy tài liệu hoặc chưa được chia sẻ' });
+    }
+
+    const uploadDir = path.join(__dirname, '..', 'uploads');
+    const filePath = path.join(uploadDir, doc.filePath);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: 'File không tồn tại' });
+    }
+
+    res.download(filePath, doc.originalName || doc.name);
   } catch (error) {
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }

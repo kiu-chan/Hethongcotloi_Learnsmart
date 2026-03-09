@@ -12,7 +12,9 @@ const WheelGameModal = ({ wheel, onClose, onRecordPlay }) => {
   const [result, setResult] = useState(null);
   const [showResult, setShowResult] = useState(false);
   const [spinCount, setSpinCount] = useState(0);
-  const [currentQuestion, setCurrentQuestion] = useState(null);
+  const [currentQuestion, setCurrentQuestion] = useState(null); // {type: 'open', text} | {type: 'mcq', question, answers, correct}
+  const [selectedAnswer, setSelectedAnswer] = useState(null);
+  const [showAnswer, setShowAnswer] = useState(false);
 
   const wheelRef = useRef(null);
   const currentRotationRef = useRef(0);
@@ -20,11 +22,21 @@ const WheelGameModal = ({ wheel, onClose, onRecordPlay }) => {
   const items = wheel.items || [];
   const segmentAngle = 360 / items.length;
 
+  const pickRandomQuestion = () => {
+    const openQs = (wheel.wheelQuestions || []).map((text) => ({ type: 'open', text }));
+    const mcqQs = (wheel.wheelMCQs || []).map((q) => ({ type: 'mcq', ...q }));
+    const all = [...openQs, ...mcqQs];
+    if (all.length === 0) return null;
+    return all[Math.floor(Math.random() * all.length)];
+  };
+
   const spinWheel = () => {
     if (isSpinning || items.length === 0) return;
     setIsSpinning(true);
     setShowResult(false);
     setCurrentQuestion(null);
+    setSelectedAnswer(null);
+    setShowAnswer(false);
 
     // Pick a random winning index directly
     const winningIndex = Math.floor(Math.random() * items.length);
@@ -61,10 +73,7 @@ const WheelGameModal = ({ wheel, onClose, onRecordPlay }) => {
       setIsSpinning(false);
       setSpinCount((prev) => prev + 1);
       onRecordPlay(wheel._id);
-      const wq = wheel.wheelQuestions || [];
-      if (wq.length > 0) {
-        setCurrentQuestion(wq[Math.floor(Math.random() * wq.length)]);
-      }
+      setCurrentQuestion(pickRandomQuestion());
     }, 4600);
   };
 
@@ -218,14 +227,58 @@ const WheelGameModal = ({ wheel, onClose, onRecordPlay }) => {
 
               {currentQuestion && (
                 <div className="p-4 bg-orange-50 border border-orange-200 rounded-2xl animate-[fadeIn_0.4s_ease-out]">
-                  <p className="text-xs font-semibold text-orange-500 uppercase tracking-wide mb-1">
+                  <p className="text-xs font-semibold text-orange-500 uppercase tracking-wide mb-2">
                     Câu hỏi cho {result}
                   </p>
-                  <p className="text-base font-semibold text-gray-800 leading-snug">{currentQuestion}</p>
+
+                  {currentQuestion.type === 'open' ? (
+                    <p className="text-base font-semibold text-gray-800 leading-snug">{currentQuestion.text}</p>
+                  ) : (
+                    <div>
+                      <p className="text-base font-semibold text-gray-800 leading-snug mb-3">{currentQuestion.question}</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {currentQuestion.answers.map((ans, idx) => {
+                          const isCorrect = idx === currentQuestion.correct;
+                          const isSelected = selectedAnswer === idx;
+                          let cls = 'border-gray-200 bg-white text-gray-700 hover:bg-orange-50';
+                          if (showAnswer) {
+                            if (isCorrect) cls = 'border-green-400 bg-green-50 text-green-700';
+                            else if (isSelected) cls = 'border-red-300 bg-red-50 text-red-600';
+                          } else if (isSelected) {
+                            cls = 'border-orange-400 bg-orange-100 text-orange-700';
+                          }
+                          return (
+                            <button
+                              key={idx}
+                              onClick={() => { setSelectedAnswer(idx); if (!showAnswer) setShowAnswer(true); }}
+                              className={`flex items-center gap-2 px-3 py-2 border rounded-xl text-sm font-medium transition-all text-left ${cls}`}
+                            >
+                              <span className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold ${
+                                showAnswer && isCorrect ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
+                              }`}>
+                                {String.fromCharCode(65 + idx)}
+                              </span>
+                              {ans}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {!showAnswer && (
+                        <button
+                          onClick={() => setShowAnswer(true)}
+                          className="mt-2 text-xs text-orange-500 hover:text-orange-600 font-medium"
+                        >
+                          Hiện đáp án
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   <button
                     onClick={() => {
-                      const wq = wheel.wheelQuestions || [];
-                      if (wq.length > 0) setCurrentQuestion(wq[Math.floor(Math.random() * wq.length)]);
+                      setCurrentQuestion(pickRandomQuestion());
+                      setSelectedAnswer(null);
+                      setShowAnswer(false);
                     }}
                     className="mt-3 flex items-center gap-1.5 text-sm text-orange-500 hover:text-orange-600 font-medium transition-colors"
                   >

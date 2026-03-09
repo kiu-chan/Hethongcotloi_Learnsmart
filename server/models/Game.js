@@ -31,6 +31,7 @@ const gameSchema = new mongoose.Schema(
     // Wheel fields
     items: [{ type: String }],
     wheelQuestions: [{ type: String }],
+    wheelMCQs: [questionSchema],
     color: {
       type: String,
       enum: ['blue', 'green', 'purple', 'red', 'orange'],

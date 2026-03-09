@@ -58,8 +58,15 @@ const TeacherDocuments = () => {
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef(null);
 
+  // Share modal state
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareDocId, setShareDocId] = useState(null);
+  const [availableClasses, setAvailableClasses] = useState([]);
+  const [selectedShareClasses, setSelectedShareClasses] = useState([]);
+  const [sharing, setSharing] = useState(false);
+
   const categoriesList = [
-    { id: 'lesson-plans', name: 'Giảng án' },
+    { id: 'lesson-plans', name: 'Giáo án' },
     { id: 'presentations', name: 'Bài giảng' },
     { id: 'worksheets', name: 'Bài tập' },
     { id: 'exams', name: 'Đề thi' },
@@ -68,7 +75,7 @@ const TeacherDocuments = () => {
 
   const categories = [
     { id: 'all', name: 'Tất cả', icon: FiFolder, color: 'gray' },
-    { id: 'lesson-plans', name: 'Giảng án', icon: IoDocumentTextOutline, color: 'blue' },
+    { id: 'lesson-plans', name: 'Giáo án', icon: IoDocumentTextOutline, color: 'blue' },
     { id: 'presentations', name: 'Bài giảng', icon: IoDocumentTextOutline, color: 'green' },
     { id: 'worksheets', name: 'Bài tập', icon: IoDocumentTextOutline, color: 'purple' },
     { id: 'exams', name: 'Đề thi', icon: IoDocumentTextOutline, color: 'orange' },
@@ -203,6 +210,56 @@ const TeacherDocuments = () => {
   const handleFileSelect = (docId) => {
     setSelectedFiles((prev) =>
       prev.includes(docId) ? prev.filter((id) => id !== docId) : [...prev, docId]
+    );
+  };
+
+  const openShareModal = async (doc) => {
+    setShareDocId(doc._id);
+    // Pre-select existing shared classes if available
+    setSelectedShareClasses(doc.sharedClasses || []);
+    setShowShareModal(true);
+    // Fetch available classes
+    try {
+      const res = await fetch(`${API}/students/class-view`, { headers: getAuthHeaders() });
+      const data = await res.json();
+      if (data.success) {
+        const classNames = (data.stats?.classes || []).map((c) => c.name);
+        setAvailableClasses(classNames);
+      }
+    } catch (err) {
+      console.error('Error fetching classes:', err);
+    }
+  };
+
+  const handleShare = async () => {
+    if (!shareDocId) return;
+    setSharing(true);
+    try {
+      const res = await fetch(`${API}/documents/${shareDocId}/share`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ classNames: selectedShareClasses }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShowShareModal(false);
+        setShareDocId(null);
+        setSelectedShareClasses([]);
+        fetchDocuments();
+        fetchStats();
+      } else {
+        alert(data.message || 'Lỗi chia sẻ tài liệu');
+      }
+    } catch (err) {
+      alert('Lỗi chia sẻ: ' + err.message);
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const toggleShareClass = (className) => {
+    setSelectedShareClasses((prev) =>
+      prev.includes(className) ? prev.filter((c) => c !== className) : [...prev, className]
     );
   };
 
@@ -399,12 +456,21 @@ const TeacherDocuments = () => {
                       <button
                         onClick={() => handleDownload(doc._id)}
                         className="p-2 bg-white rounded-lg hover:bg-gray-100 transition-colors"
+                        title="Tải xuống"
                       >
                         <FiDownload className="w-4 h-4 text-gray-700" />
                       </button>
                       <button
+                        onClick={() => openShareModal(doc)}
+                        className="p-2 bg-white rounded-lg hover:bg-gray-100 transition-colors"
+                        title="Chia sẻ cho lớp"
+                      >
+                        <FiShare2 className="w-4 h-4 text-emerald-600" />
+                      </button>
+                      <button
                         onClick={() => handleDelete(doc._id)}
                         className="p-2 bg-white rounded-lg hover:bg-gray-100 transition-colors"
+                        title="Xóa"
                       >
                         <FiTrash2 className="w-4 h-4 text-red-500" />
                       </button>
@@ -447,10 +513,12 @@ const TeacherDocuments = () => {
                     <FiClock className="w-3 h-3" />
                     <span>{formatDate(doc.createdAt)}</span>
                   </div>
-                  {doc.sharedWith > 0 && (
+                  {doc.sharedClasses?.length > 0 && (
                     <div className="flex items-center gap-1 mt-2 text-xs text-emerald-600">
                       <FiShare2 className="w-3 h-3" />
-                      <span>Đã chia sẻ với {doc.sharedWith} người</span>
+                      <span className="truncate" title={doc.sharedClasses.join(', ')}>
+                        {doc.sharedClasses.join(', ')}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -526,8 +594,10 @@ const TeacherDocuments = () => {
                     <td className="px-6 py-4 text-sm text-gray-600">{doc.formattedSize}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{formatDate(doc.createdAt)}</td>
                     <td className="px-6 py-4">
-                      {doc.sharedWith > 0 ? (
-                        <span className="text-sm text-emerald-600">{doc.sharedWith} người</span>
+                      {doc.sharedClasses?.length > 0 ? (
+                        <span className="text-sm text-emerald-600" title={doc.sharedClasses.join(', ')}>
+                          {doc.sharedClasses.join(', ')}
+                        </span>
                       ) : (
                         <span className="text-sm text-gray-400">Chưa chia sẻ</span>
                       )}
@@ -537,8 +607,16 @@ const TeacherDocuments = () => {
                         <button
                           onClick={() => handleDownload(doc._id)}
                           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="Tải xuống"
                         >
                           <FiDownload className="w-4 h-4 text-gray-600" />
+                        </button>
+                        <button
+                          onClick={() => openShareModal(doc)}
+                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="Chia sẻ cho lớp"
+                        >
+                          <FiShare2 className="w-4 h-4 text-emerald-600" />
                         </button>
                         <button
                           onClick={() => toggleFavorite(doc._id)}
@@ -580,6 +658,76 @@ const TeacherDocuments = () => {
           >
             Tải lên tài liệu
           </button>
+        </div>
+      )}
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-8">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800">Chia sẻ tài liệu</h2>
+                <p className="text-sm text-gray-500 mt-1">Chọn lớp học để chia sẻ tài liệu này</p>
+              </div>
+              <button
+                onClick={() => { setShowShareModal(false); setShareDocId(null); setSelectedShareClasses([]); }}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <FiX className="w-6 h-6 text-gray-600" />
+              </button>
+            </div>
+
+            {availableClasses.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p className="text-sm">Chưa có lớp học nào. Vui lòng liên hệ quản trị viên.</p>
+              </div>
+            ) : (
+              <div className="space-y-2 mb-6 max-h-64 overflow-y-auto">
+                {availableClasses.map((cls) => {
+                  const isChecked = selectedShareClasses.includes(cls);
+                  return (
+                    <label
+                      key={cls}
+                      className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer border-2 transition-all ${
+                        isChecked ? 'border-emerald-500 bg-emerald-50' : 'border-gray-100 hover:border-gray-200'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleShareClass(cls)}
+                        className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+                      />
+                      <span className="font-medium text-gray-700">{cls}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+
+            {selectedShareClasses.length > 0 && (
+              <p className="text-sm text-emerald-600 mb-4">
+                Đã chọn: {selectedShareClasses.join(', ')}
+              </p>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowShareModal(false); setShareDocId(null); setSelectedShareClasses([]); }}
+                className="flex-1 px-6 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-semibold text-gray-700 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleShare}
+                disabled={sharing || availableClasses.length === 0}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all disabled:opacity-50"
+              >
+                {sharing ? 'Đang chia sẻ...' : selectedShareClasses.length === 0 ? 'Bỏ chia sẻ' : 'Chia sẻ'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

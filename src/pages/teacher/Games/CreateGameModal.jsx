@@ -50,6 +50,13 @@ const CreateGameModal = ({ type, onClose, onCreated, editGame = null }) => {
         color: editGame.color || 'blue',
         items: editGame.items?.length > 0 ? [...editGame.items] : ['', ''],
         wheelQuestions: editGame.wheelQuestions?.length > 0 ? [...editGame.wheelQuestions] : [],
+        wheelMCQs: editGame.wheelMCQs?.length > 0
+          ? editGame.wheelMCQs.map((q) => ({
+              question: q.question || '',
+              answers: Array.isArray(q.answers) && q.answers.length === 4 ? q.answers.map(String) : ['', '', '', ''],
+              correct: typeof q.correct === 'number' ? q.correct : 0,
+            }))
+          : [],
       };
     }
     return {
@@ -57,12 +64,16 @@ const CreateGameModal = ({ type, onClose, onCreated, editGame = null }) => {
       color: 'blue',
       items: ['', ''],
       wheelQuestions: [],
+      wheelMCQs: [],
     };
   });
 
   const [wheelQuestionMode, setWheelQuestionMode] = useState(
-    () => editGame && type === 'wheel' ? (editGame.wheelQuestions?.length || 0) > 0 : false
+    () => editGame && type === 'wheel'
+      ? (editGame.wheelQuestions?.length || 0) > 0 || (editGame.wheelMCQs?.length || 0) > 0
+      : false
   );
+  const [wheelQuestionTab, setWheelQuestionTab] = useState('open');
 
   // File import state
   const quizFileInputRef = useRef(null);
@@ -82,15 +93,15 @@ const CreateGameModal = ({ type, onClose, onCreated, editGame = null }) => {
     const wb = XLSX.read(ab, { type: 'array' });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
-    // Skip rows until we find one that looks like questions (has at least 5 cells)
-    const dataRows = rows.filter((r) => r.length >= 5 && r[1]);
+    // Skip rows until we find one that looks like questions (has at least 6 cells)
+    const dataRows = rows.filter((r) => r.length >= 6 && r[0]);
     // Detect header row and skip it
-    const start = /câu hỏi|question/i.test(String(dataRows[0]?.[1] ?? '')) ? 1 : 0;
+    const start = /câu hỏi|question/i.test(String(dataRows[0]?.[0] ?? '')) ? 1 : 0;
     return dataRows.slice(start).map((row) => {
-      const answers = [String(row[2] ?? ''), String(row[3] ?? ''), String(row[4] ?? ''), String(row[5] ?? '')];
-      const correctLetter = String(row[6] ?? 'A').trim().toUpperCase();
+      const answers = [String(row[1] ?? ''), String(row[2] ?? ''), String(row[3] ?? ''), String(row[4] ?? '')];
+      const correctLetter = String(row[5] ?? 'A').trim().toUpperCase();
       const correct = Math.max(0, correctLetter.charCodeAt(0) - 65);
-      return { question: String(row[1] ?? ''), answers, correct: correct < 4 ? correct : 0 };
+      return { question: String(row[0] ?? ''), answers, correct: correct < 4 ? correct : 0 };
     }).filter((q) => q.question.trim());
   };
 
@@ -251,6 +262,69 @@ const CreateGameModal = ({ type, onClose, onCreated, editGame = null }) => {
       ...prev,
       wheelQuestions: prev.wheelQuestions.map((q, i) => (i === index ? value : q)),
     }));
+  };
+
+  const addWheelMCQ = () => {
+    setWheelForm((prev) => ({
+      ...prev,
+      wheelMCQs: [...prev.wheelMCQs, { question: '', answers: ['', '', '', ''], correct: 0 }],
+    }));
+  };
+
+  const removeWheelMCQ = (index) => {
+    setWheelForm((prev) => ({ ...prev, wheelMCQs: prev.wheelMCQs.filter((_, i) => i !== index) }));
+  };
+
+  const updateWheelMCQ = (index, field, value) => {
+    setWheelForm((prev) => ({
+      ...prev,
+      wheelMCQs: prev.wheelMCQs.map((q, i) => (i === index ? { ...q, [field]: value } : q)),
+    }));
+  };
+
+  const updateWheelMCQAnswer = (qIndex, aIndex, value) => {
+    setWheelForm((prev) => ({
+      ...prev,
+      wheelMCQs: prev.wheelMCQs.map((q, i) =>
+        i === qIndex ? { ...q, answers: q.answers.map((a, j) => (j === aIndex ? value : a)) } : q
+      ),
+    }));
+  };
+
+  // AI generation state (wheel MCQs)
+  const [aiWheelMCQTopic, setAiWheelMCQTopic] = useState('');
+  const [aiWheelMCQCount, setAiWheelMCQCount] = useState(5);
+  const [aiWheelMCQLoading, setAiWheelMCQLoading] = useState(false);
+
+  const generateWheelMCQsWithAI = async () => {
+    if (!aiWheelMCQTopic.trim()) return;
+    setAiWheelMCQLoading(true);
+    setError('');
+    try {
+      const prompt = `Tạo ${aiWheelMCQCount} câu hỏi trắc nghiệm ngắn gọn về chủ đề "${aiWheelMCQTopic}" để dùng trong trò chơi vòng quay lớp học.
+Mỗi câu hỏi có 4 đáp án (A, B, C, D), chỉ 1 đáp án đúng. Câu hỏi nên ngắn gọn, phù hợp với lớp học.
+Trả về mảng JSON (KHÔNG có markdown, KHÔNG có \`\`\`json):
+[{"question":"Câu hỏi?","answers":["Đáp án A","Đáp án B","Đáp án C","Đáp án D"],"correct":0}]
+Trong đó "correct" là index (0-3) của đáp án đúng. Chỉ trả về JSON thuần túy.`;
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [{ role: 'user', content: prompt }],
+      });
+      const text = response.choices[0].message.content;
+      const generated = JSON.parse(sanitizeJSONText(text));
+      if (Array.isArray(generated) && generated.length > 0) {
+        const valid = generated.map((q) => ({
+          question: q.question || '',
+          answers: Array.isArray(q.answers) && q.answers.length === 4 ? q.answers.map(String) : ['', '', '', ''],
+          correct: typeof q.correct === 'number' && q.correct >= 0 && q.correct <= 3 ? q.correct : 0,
+        }));
+        setWheelForm((prev) => ({ ...prev, wheelMCQs: valid }));
+      }
+    } catch {
+      setError('Không thể tạo câu hỏi bằng AI. Vui lòng thử lại.');
+    } finally {
+      setAiWheelMCQLoading(false);
+    }
   };
 
   const generateWheelQuestionsWithAI = async () => {
@@ -421,6 +495,7 @@ CHÚ Ý: Chỉ trả về JSON thuần túy, không thêm bất kỳ text nào k
             ...wheelForm,
             items: wheelForm.items.filter((i) => i.trim()),
             wheelQuestions: wheelQuestionMode ? wheelForm.wheelQuestions.filter((q) => q.trim()) : [],
+            wheelMCQs: wheelQuestionMode ? wheelForm.wheelMCQs.filter((q) => q.question.trim()) : [],
           };
 
       if (type === 'quiz') {
@@ -845,79 +920,207 @@ CHÚ Ý: Chỉ trả về JSON thuần túy, không thêm bất kỳ text nào k
 
                 {wheelQuestionMode && (
                   <div className="mt-4 space-y-3">
-                    {/* AI generate wheel questions */}
-                    <div className="bg-white rounded-lg p-3 border border-orange-100">
-                      <div className="flex items-center gap-2 text-orange-700 font-medium mb-2 text-sm">
-                        <FiZap className="w-3.5 h-3.5" />
-                        Tạo câu hỏi bằng AI
-                      </div>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={aiWheelTopic}
-                          onChange={(e) => setAiWheelTopic(e.target.value)}
-                          placeholder="Nhập chủ đề, VD: Địa lý Việt Nam"
-                          className="flex-1 px-3 py-2 border border-orange-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-400"
-                        />
-                        <input
-                          type="number"
-                          min={2}
-                          max={30}
-                          value={aiWheelCount}
-                          onChange={(e) => setAiWheelCount(Number(e.target.value))}
-                          className="w-16 px-3 py-2 border border-orange-200 rounded-lg text-sm text-center outline-none"
-                          title="Số câu hỏi"
-                        />
-                        <button
-                          type="button"
-                          onClick={generateWheelQuestionsWithAI}
-                          disabled={aiWheelLoading || !aiWheelTopic.trim()}
-                          className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-50 transition-colors whitespace-nowrap"
-                        >
-                          {aiWheelLoading ? <FiLoader className="w-3.5 h-3.5 animate-spin" /> : <FiZap className="w-3.5 h-3.5" />}
-                          Tạo
-                        </button>
-                      </div>
+                    {/* Tabs */}
+                    <div className="flex gap-1 bg-orange-100 rounded-lg p-1">
+                      <button
+                        type="button"
+                        onClick={() => setWheelQuestionTab('open')}
+                        className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                          wheelQuestionTab === 'open'
+                            ? 'bg-white text-orange-700 shadow-sm'
+                            : 'text-orange-600 hover:text-orange-700'
+                        }`}
+                      >
+                        Câu hỏi mở ({wheelForm.wheelQuestions.filter((q) => q.trim()).length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setWheelQuestionTab('mcq')}
+                        className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                          wheelQuestionTab === 'mcq'
+                            ? 'bg-white text-orange-700 shadow-sm'
+                            : 'text-orange-600 hover:text-orange-700'
+                        }`}
+                      >
+                        Trắc nghiệm ({wheelForm.wheelMCQs.length})
+                      </button>
                     </div>
 
-                    {/* Question list */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-gray-700">
-                          Danh sách câu hỏi ({wheelForm.wheelQuestions.filter((q) => q.trim()).length})
-                        </span>
-                        <button
-                          type="button"
-                          onClick={addWheelQuestion}
-                          className="flex items-center gap-1 text-sm text-orange-600 hover:text-orange-700 font-medium"
-                        >
-                          <FiPlus className="w-4 h-4" /> Thêm
-                        </button>
-                      </div>
-                      <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                        {wheelForm.wheelQuestions.map((question, index) => (
-                          <div key={index} className="flex items-center gap-2">
-                            <span className="w-6 h-6 bg-orange-100 rounded flex items-center justify-center text-xs font-bold text-orange-600 flex-shrink-0">
-                              {index + 1}
-                            </span>
+                    {wheelQuestionTab === 'open' ? (
+                      <>
+                        {/* AI generate open questions */}
+                        <div className="bg-white rounded-lg p-3 border border-orange-100">
+                          <div className="flex items-center gap-2 text-orange-700 font-medium mb-2 text-sm">
+                            <FiZap className="w-3.5 h-3.5" />
+                            Tạo câu hỏi mở bằng AI
+                          </div>
+                          <div className="flex gap-2">
                             <input
                               type="text"
-                              value={question}
-                              onChange={(e) => updateWheelQuestion(index, e.target.value)}
-                              placeholder={`Câu hỏi ${index + 1}...`}
-                              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                              value={aiWheelTopic}
+                              onChange={(e) => setAiWheelTopic(e.target.value)}
+                              placeholder="Nhập chủ đề, VD: Địa lý Việt Nam"
+                              className="flex-1 px-3 py-2 border border-orange-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-400"
+                            />
+                            <input
+                              type="number"
+                              min={2}
+                              max={30}
+                              value={aiWheelCount}
+                              onChange={(e) => setAiWheelCount(Number(e.target.value))}
+                              className="w-16 px-3 py-2 border border-orange-200 rounded-lg text-sm text-center outline-none"
+                              title="Số câu hỏi"
                             />
                             <button
                               type="button"
-                              onClick={() => removeWheelQuestion(index)}
-                              className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-50 rounded flex-shrink-0"
+                              onClick={generateWheelQuestionsWithAI}
+                              disabled={aiWheelLoading || !aiWheelTopic.trim()}
+                              className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-50 transition-colors whitespace-nowrap"
                             >
-                              <FiX className="w-4 h-4" />
+                              {aiWheelLoading ? <FiLoader className="w-3.5 h-3.5 animate-spin" /> : <FiZap className="w-3.5 h-3.5" />}
+                              Tạo
                             </button>
                           </div>
-                        ))}
-                      </div>
-                    </div>
+                        </div>
+
+                        {/* Open question list */}
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium text-gray-700">
+                              Danh sách ({wheelForm.wheelQuestions.filter((q) => q.trim()).length})
+                            </span>
+                            <button
+                              type="button"
+                              onClick={addWheelQuestion}
+                              className="flex items-center gap-1 text-sm text-orange-600 hover:text-orange-700 font-medium"
+                            >
+                              <FiPlus className="w-4 h-4" /> Thêm
+                            </button>
+                          </div>
+                          <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                            {wheelForm.wheelQuestions.map((question, index) => (
+                              <div key={index} className="flex items-center gap-2">
+                                <span className="w-6 h-6 bg-orange-100 rounded flex items-center justify-center text-xs font-bold text-orange-600 flex-shrink-0">
+                                  {index + 1}
+                                </span>
+                                <input
+                                  type="text"
+                                  value={question}
+                                  onChange={(e) => updateWheelQuestion(index, e.target.value)}
+                                  placeholder={`Câu hỏi ${index + 1}...`}
+                                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeWheelQuestion(index)}
+                                  className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-50 rounded flex-shrink-0"
+                                >
+                                  <FiX className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {/* AI generate MCQs */}
+                        <div className="bg-white rounded-lg p-3 border border-orange-100">
+                          <div className="flex items-center gap-2 text-orange-700 font-medium mb-2 text-sm">
+                            <FiZap className="w-3.5 h-3.5" />
+                            Tạo trắc nghiệm bằng AI
+                          </div>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={aiWheelMCQTopic}
+                              onChange={(e) => setAiWheelMCQTopic(e.target.value)}
+                              placeholder="Nhập chủ đề, VD: Lịch sử Việt Nam"
+                              className="flex-1 px-3 py-2 border border-orange-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-400"
+                            />
+                            <input
+                              type="number"
+                              min={2}
+                              max={20}
+                              value={aiWheelMCQCount}
+                              onChange={(e) => setAiWheelMCQCount(Number(e.target.value))}
+                              className="w-16 px-3 py-2 border border-orange-200 rounded-lg text-sm text-center outline-none"
+                              title="Số câu hỏi"
+                            />
+                            <button
+                              type="button"
+                              onClick={generateWheelMCQsWithAI}
+                              disabled={aiWheelMCQLoading || !aiWheelMCQTopic.trim()}
+                              className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-50 transition-colors whitespace-nowrap"
+                            >
+                              {aiWheelMCQLoading ? <FiLoader className="w-3.5 h-3.5 animate-spin" /> : <FiZap className="w-3.5 h-3.5" />}
+                              Tạo
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* MCQ list */}
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium text-gray-700">
+                              Danh sách ({wheelForm.wheelMCQs.length})
+                            </span>
+                            <button
+                              type="button"
+                              onClick={addWheelMCQ}
+                              className="flex items-center gap-1 text-sm text-orange-600 hover:text-orange-700 font-medium"
+                            >
+                              <FiPlus className="w-4 h-4" /> Thêm câu
+                            </button>
+                          </div>
+                          <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                            {wheelForm.wheelMCQs.map((q, qIndex) => (
+                              <div key={qIndex} className="bg-orange-50 rounded-lg p-3 space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-semibold text-orange-600">Câu {qIndex + 1}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeWheelMCQ(qIndex)}
+                                    className="text-red-400 hover:text-red-500"
+                                  >
+                                    <FiTrash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                                <input
+                                  type="text"
+                                  value={q.question}
+                                  onChange={(e) => updateWheelMCQ(qIndex, 'question', e.target.value)}
+                                  placeholder="Nhập câu hỏi..."
+                                  className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                                />
+                                <div className="grid grid-cols-2 gap-1.5">
+                                  {q.answers.map((a, aIndex) => (
+                                    <div key={aIndex} className="flex items-center gap-1.5">
+                                      <input
+                                        type="radio"
+                                        name={`wheel-mcq-correct-${qIndex}`}
+                                        checked={q.correct === aIndex}
+                                        onChange={() => updateWheelMCQ(qIndex, 'correct', aIndex)}
+                                        className="text-orange-500 focus:ring-orange-400"
+                                      />
+                                      <input
+                                        type="text"
+                                        value={a}
+                                        onChange={(e) => updateWheelMCQAnswer(qIndex, aIndex, e.target.value)}
+                                        placeholder={`Đáp án ${String.fromCharCode(65 + aIndex)}`}
+                                        className={`flex-1 px-2 py-1.5 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-orange-400 ${
+                                          q.correct === aIndex ? 'border-green-400 bg-green-50' : 'border-gray-200 bg-white'
+                                        }`}
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
