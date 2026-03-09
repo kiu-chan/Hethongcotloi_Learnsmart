@@ -9,8 +9,7 @@ import {
   FiMenu,
   FiX,
   FiSearch,
-  FiBell,
-  FiShield
+  FiBell
 } from 'react-icons/fi';
 import {
   IoStatsChartOutline,
@@ -76,8 +75,8 @@ const AdminLayout = ({ children }) => {
           {/* Logo */}
           <div className="flex items-center justify-between p-6 border-b border-indigo-500">
             <Link to="/admin" className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
-                <FiShield className="w-6 h-6 text-indigo-600" />
+              <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center">
+                <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain" />
               </div>
               <div>
                 <span className="text-xl font-bold">Admin Panel</span>

@@ -16,7 +16,6 @@ import {
   FiGrid
 } from 'react-icons/fi';
 import {
-  IoBookOutline,
   IoSparklesOutline,
   IoPricetagsOutline
 } from 'react-icons/io5';
@@ -77,8 +76,8 @@ function DefaultLayout({ children }) {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-400 rounded-xl flex items-center justify-center shadow-lg">
-                <IoBookOutline className="w-5 h-5 text-white" />
+              <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center">
+                <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-800">Learn Smart</h1>
@@ -283,8 +282,8 @@ function DefaultLayout({ children }) {
             {/* Brand */}
             <div className="md:col-span-2">
               <Link to="/" className="flex items-center gap-2 mb-4">
-                <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-400 rounded-xl flex items-center justify-center">
-                  <IoBookOutline className="w-5 h-5 text-white" />
+                <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center">
+                  <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain" />
                 </div>
                 <span className="text-lg font-bold text-white">Learn Smart</span>
               </Link>

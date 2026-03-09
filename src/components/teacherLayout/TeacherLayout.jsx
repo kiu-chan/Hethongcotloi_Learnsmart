@@ -78,8 +78,8 @@ const TeacherLayout = ({ children }) => {
           {/* Logo */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <Link to="/teacher/dashboard" className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-400 rounded-xl flex items-center justify-center">
-                <IoBookOutline className="w-5 h-5 text-white" />
+              <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center">
+                <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain" />
               </div>
               <div>
                 <h1 className="text-lg font-bold text-gray-800">Learn Smart</h1>
