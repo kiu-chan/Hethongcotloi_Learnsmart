@@ -1,23 +1,83 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { FiX, FiRefreshCw } from 'react-icons/fi';
-import { IoSparklesOutline, IoTrophyOutline } from 'react-icons/io5';
+import { IoSparklesOutline, IoTrophyOutline, IoCheckmarkCircle, IoCloseCircle, IoStar } from 'react-icons/io5';
 
 const WHEEL_COLORS = [
   '#3B82F6', '#10B981', '#F59E0B', '#EF4444',
   '#8B5CF6', '#EC4899', '#14B8A6', '#F97316',
 ];
 
+const CONFETTI_COLORS = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE'];
+
+const CorrectOverlay = ({ onDone }) => {
+  const particles = Array.from({ length: 30 }, (_, i) => ({
+    id: i,
+    color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+    left: `${5 + Math.random() * 90}%`,
+    delay: `${Math.random() * 0.5}s`,
+    duration: `${0.8 + Math.random() * 0.6}s`,
+    size: `${6 + Math.floor(Math.random() * 8)}px`,
+    shape: i % 3 === 0 ? 'circle' : i % 3 === 1 ? 'square' : 'star',
+    rotate: `${Math.random() * 720}deg`,
+  }));
+
+  useEffect(() => {
+    const t = setTimeout(onDone, 1800);
+    return () => clearTimeout(t);
+  }, [onDone]);
+
+  return (
+    <div className="fixed inset-0 z-[60] pointer-events-none overflow-hidden">
+      {/* Flash overlay */}
+      <div className="absolute inset-0 animate-[flashOverlay_0.4s_ease-out]" style={{ background: 'radial-gradient(circle at center, rgba(255,215,0,0.25) 0%, transparent 70%)' }} />
+      {/* Confetti particles */}
+      {particles.map((p) => (
+        <div
+          key={p.id}
+          className="absolute top-0"
+          style={{
+            left: p.left,
+            width: p.size,
+            height: p.size,
+            backgroundColor: p.shape !== 'star' ? p.color : 'transparent',
+            borderRadius: p.shape === 'circle' ? '50%' : p.shape === 'square' ? '2px' : '0',
+            animation: `confettiFall ${p.duration} ${p.delay} ease-in forwards`,
+          }}
+        >
+          {p.shape === 'star' && (
+            <IoStar style={{ color: p.color, width: p.size, height: p.size }} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const WheelGameModal = ({ wheel, onClose, onRecordPlay }) => {
   const [isSpinning, setIsSpinning] = useState(false);
   const [result, setResult] = useState(null);
   const [showResult, setShowResult] = useState(false);
   const [spinCount, setSpinCount] = useState(0);
-  const [currentQuestion, setCurrentQuestion] = useState(null); // {type: 'open', text} | {type: 'mcq', question, answers, correct}
+  const [currentQuestion, setCurrentQuestion] = useState(null);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [answerEffect, setAnswerEffect] = useState(null); // 'correct' | 'wrong' | null
+  const [showCorrectOverlay, setShowCorrectOverlay] = useState(false);
 
   const wheelRef = useRef(null);
   const currentRotationRef = useRef(0);
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    audioRef.current = new Audio('/audio.mp3');
+    audioRef.current.loop = true;
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
 
   const items = wheel.items || [];
   const segmentAngle = 360 / items.length;
@@ -37,6 +97,12 @@ const WheelGameModal = ({ wheel, onClose, onRecordPlay }) => {
     setCurrentQuestion(null);
     setSelectedAnswer(null);
     setShowAnswer(false);
+    setAnswerEffect(null);
+
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(() => {});
+    }
 
     // Pick a random winning index directly
     const winningIndex = Math.floor(Math.random() * items.length);
@@ -63,22 +129,27 @@ const WheelGameModal = ({ wheel, onClose, onRecordPlay }) => {
     currentRotationRef.current = newRotation;
 
     if (wheelRef.current) {
-      wheelRef.current.style.transition = 'transform 4.5s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
+      wheelRef.current.style.transition = 'transform 10s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
       wheelRef.current.style.transform = `rotate(${newRotation}deg)`;
     }
 
     setTimeout(() => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
       setResult(items[winningIndex]);
       setShowResult(true);
       setIsSpinning(false);
       setSpinCount((prev) => prev + 1);
       onRecordPlay(wheel._id);
       setCurrentQuestion(pickRandomQuestion());
-    }, 4600);
+    }, 10100);
   };
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      {showCorrectOverlay && <CorrectOverlay onDone={() => setShowCorrectOverlay(false)} />}
       <div className="bg-white rounded-3xl max-w-2xl w-full overflow-hidden shadow-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 px-8 py-5">
@@ -236,22 +307,61 @@ const WheelGameModal = ({ wheel, onClose, onRecordPlay }) => {
                   ) : (
                     <div>
                       <p className="text-base font-semibold text-gray-800 leading-snug mb-3">{currentQuestion.question}</p>
+                      {answerEffect === 'correct' && (
+                        <div className="relative mb-3 rounded-2xl overflow-hidden animate-[bounceIn_0.45s_cubic-bezier(0.34,1.56,0.64,1)]">
+                          {/* Glowing background */}
+                          <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 via-green-400 to-teal-400 animate-[shimmer_1.5s_ease-in-out_infinite]" />
+                          <div className="absolute inset-0 bg-gradient-to-r from-yellow-300/30 via-transparent to-yellow-300/30 animate-[shimmer_1.5s_ease-in-out_0.75s_infinite]" />
+                          <div className="relative flex items-center gap-3 px-4 py-3">
+                            <div className="w-10 h-10 bg-white/25 rounded-full flex items-center justify-center flex-shrink-0 animate-[spinPop_0.5s_ease-out]">
+                              <IoCheckmarkCircle className="w-7 h-7 text-white drop-shadow" />
+                            </div>
+                            <div>
+                              <p className="text-white font-extrabold text-base leading-tight drop-shadow">Chính xác! 🎉</p>
+                              <p className="text-white/90 text-xs font-medium">Tuyệt vời, câu trả lời đúng rồi!</p>
+                            </div>
+                            <div className="ml-auto flex gap-1">
+                              {['⭐','✨','🌟'].map((s, i) => (
+                                <span key={i} className="text-lg animate-[starPop_0.3s_ease-out_forwards]" style={{ animationDelay: `${0.1 + i * 0.1}s`, opacity: 0 }}>{s}</span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {answerEffect === 'wrong' && (
+                        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl mb-3 font-semibold text-sm bg-red-100 border border-red-300 text-red-700 animate-[bounceIn_0.4s_ease-out]">
+                          <IoCloseCircle className="w-5 h-5 text-red-500 flex-shrink-0" /> Chưa đúng! Xem lại đáp án nhé.
+                        </div>
+                      )}
                       <div className="grid grid-cols-2 gap-2">
                         {currentQuestion.answers.map((ans, idx) => {
                           const isCorrect = idx === currentQuestion.correct;
                           const isSelected = selectedAnswer === idx;
                           let cls = 'border-gray-200 bg-white text-gray-700 hover:bg-orange-50';
+                          let animation = '';
                           if (showAnswer) {
-                            if (isCorrect) cls = 'border-green-400 bg-green-50 text-green-700';
-                            else if (isSelected) cls = 'border-red-300 bg-red-50 text-red-600';
+                            if (isCorrect) {
+                              cls = 'border-green-400 bg-green-50 text-green-700';
+                              animation = 'animate-[correctPulse_0.5s_ease-out]';
+                            } else if (isSelected) {
+                              cls = 'border-red-300 bg-red-50 text-red-600';
+                              animation = 'animate-[wrongShake_0.4s_ease-out]';
+                            }
                           } else if (isSelected) {
                             cls = 'border-orange-400 bg-orange-100 text-orange-700';
                           }
                           return (
                             <button
                               key={idx}
-                              onClick={() => { setSelectedAnswer(idx); if (!showAnswer) setShowAnswer(true); }}
-                              className={`flex items-center gap-2 px-3 py-2 border rounded-xl text-sm font-medium transition-all text-left ${cls}`}
+                              onClick={() => {
+                                if (showAnswer) return;
+                                setSelectedAnswer(idx);
+                                setShowAnswer(true);
+                                const effect = idx === currentQuestion.correct ? 'correct' : 'wrong';
+                                setAnswerEffect(effect);
+                                if (effect === 'correct') setShowCorrectOverlay(true);
+                              }}
+                              className={`flex items-center gap-2 px-3 py-2 border rounded-xl text-sm font-medium transition-all text-left ${cls} ${animation}`}
                             >
                               <span className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold ${
                                 showAnswer && isCorrect ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
@@ -265,7 +375,7 @@ const WheelGameModal = ({ wheel, onClose, onRecordPlay }) => {
                       </div>
                       {!showAnswer && (
                         <button
-                          onClick={() => setShowAnswer(true)}
+                          onClick={() => { setShowAnswer(true); setAnswerEffect(null); }}
                           className="mt-2 text-xs text-orange-500 hover:text-orange-600 font-medium"
                         >
                           Hiện đáp án
@@ -279,6 +389,8 @@ const WheelGameModal = ({ wheel, onClose, onRecordPlay }) => {
                       setCurrentQuestion(pickRandomQuestion());
                       setSelectedAnswer(null);
                       setShowAnswer(false);
+                      setAnswerEffect(null);
+                      setShowCorrectOverlay(false);
                     }}
                     className="mt-3 flex items-center gap-1.5 text-sm text-orange-500 hover:text-orange-600 font-medium transition-colors"
                   >
@@ -313,6 +425,49 @@ const WheelGameModal = ({ wheel, onClose, onRecordPlay }) => {
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes bounceIn {
+          0% { opacity: 0; transform: scale(0.6); }
+          55% { transform: scale(1.12); }
+          75% { transform: scale(0.96); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes correctPulse {
+          0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34,197,94,0.6); }
+          40% { transform: scale(1.06); box-shadow: 0 0 0 10px rgba(34,197,94,0.15); }
+          70% { box-shadow: 0 0 0 16px rgba(34,197,94,0); }
+          100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+        }
+        @keyframes wrongShake {
+          0%, 100% { transform: translateX(0); }
+          20% { transform: translateX(-7px) rotate(-1deg); }
+          40% { transform: translateX(7px) rotate(1deg); }
+          60% { transform: translateX(-4px); }
+          80% { transform: translateX(4px); }
+        }
+        @keyframes confettiFall {
+          0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+          80% { opacity: 1; }
+          100% { transform: translateY(100vh) rotate(var(--rotate, 720deg)); opacity: 0; }
+        }
+        @keyframes flashOverlay {
+          0% { opacity: 0; }
+          30% { opacity: 1; }
+          100% { opacity: 0; }
+        }
+        @keyframes shimmer {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.75; }
+        }
+        @keyframes spinPop {
+          0% { transform: scale(0) rotate(-180deg); }
+          70% { transform: scale(1.2) rotate(10deg); }
+          100% { transform: scale(1) rotate(0deg); }
+        }
+        @keyframes starPop {
+          0% { opacity: 0; transform: scale(0) translateY(4px); }
+          70% { transform: scale(1.3) translateY(-2px); }
+          100% { opacity: 1; transform: scale(1) translateY(0); }
         }
       `}</style>
     </div>
