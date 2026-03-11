@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { FiPlus, FiSearch, FiX, FiLoader, FiDownload, FiUpload, FiTrash2 } from 'react-icons/fi';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { FiPlus, FiSearch, FiX, FiLoader, FiDownload, FiUpload, FiTrash2, FiChevronDown, FiFileText } from 'react-icons/fi';
 import { MdOutlineClass } from 'react-icons/md';
 import { API_BASE, getToken } from './constants';
+import { exportClassesToExcel, downloadTemplate } from './excelHelpers';
 import ClassCard from './ClassCard';
 import ClassModal from './ClassModal';
 import AddMemberModal from './AddMemberModal';
 import ImportModal from './ImportModal';
-import DownloadPopup from './DownloadPopup';
 
 const AdminClasses = () => {
   const [classes, setClasses] = useState([]);
