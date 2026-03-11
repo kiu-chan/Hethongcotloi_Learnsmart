@@ -379,22 +379,26 @@ const StudentClassroom = () => {
           </div>
         </div>
 
-        {/* Teacher Info */}
+        {/* Homeroom Teacher Info */}
         {classroom.teacher && (
           <div className="bg-white rounded-xl border border-gray-100 p-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center text-white font-bold text-lg">
-                {classroom.teacher.name?.charAt(0) || 'G'}
-              </div>
+              {classroom.teacher.avatar ? (
+                <img src={classroom.teacher.avatar} alt={classroom.teacher.name} className="w-12 h-12 rounded-xl object-cover" />
+              ) : (
+                <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+                  {classroom.teacher.name?.charAt(0) || 'G'}
+                </div>
+              )}
               <div>
-                <h2 className="text-lg font-bold text-gray-800">Giáo viên</h2>
+                <h2 className="text-lg font-bold text-gray-800">Giáo viên chủ nhiệm</h2>
                 <p className="text-sm text-gray-500">Thông tin liên hệ</p>
               </div>
             </div>
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <FiUser className="w-4 h-4" />
-                <span>{classroom.teacher.name}</span>
+                <span className="font-medium text-gray-800">{classroom.teacher.name}</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <FiMail className="w-4 h-4" />

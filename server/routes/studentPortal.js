@@ -63,7 +63,10 @@ const getStudent = async (userId) => {
 
 // Helper: lấy danh sách lớp học của học sinh từ Class model
 const getStudentClasses = async (userId) => {
-  return Class.find({ students: userId }).populate('teachers', 'name email avatar').sort({ name: 1 });
+  return Class.find({ students: userId })
+    .populate('teachers', 'name email avatar')
+    .populate('homeroomTeacher', 'name email avatar')
+    .sort({ name: 1 });
 };
 
 // GET /api/student-portal/classroom - Thông tin lớp học
@@ -96,12 +99,16 @@ router.get('/classroom', async (req, res) => {
         .map((c) => c.name),
     }));
 
-    // Lấy giáo viên đầu tiên từ các lớp
-    const teacherMap = new Map();
-    classes.forEach((c) => c.teachers.forEach((t) => teacherMap.set(t._id.toString(), t)));
-    const firstTeacher = teacherMap.values().next().value;
-    const teacher = firstTeacher
-      ? { name: firstTeacher.name, email: firstTeacher.email, avatar: firstTeacher.avatar }
+    // Lấy giáo viên chủ nhiệm từ lớp đầu tiên có giáo viên chủ nhiệm
+    let homeroomTeacher = null;
+    for (const c of classes) {
+      if (c.homeroomTeacher) {
+        homeroomTeacher = c.homeroomTeacher;
+        break;
+      }
+    }
+    const teacher = homeroomTeacher
+      ? { name: homeroomTeacher.name, email: homeroomTeacher.email, avatar: homeroomTeacher.avatar }
       : null;
 
     res.json({

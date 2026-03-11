@@ -486,6 +486,7 @@ router.get('/classes', async (req, res) => {
     const classes = await Class.find(filter)
       .populate('teachers', 'name email avatar')
       .populate('students', 'name email avatar')
+      .populate('homeroomTeacher', 'name email avatar')
       .sort({ createdAt: -1 });
 
     res.json({ success: true, classes });
@@ -510,6 +511,7 @@ router.post('/classes', async (req, res) => {
     const cls = await Class.create({ name: name.trim() });
     await cls.populate('teachers', 'name email avatar');
     await cls.populate('students', 'name email avatar');
+    await cls.populate('homeroomTeacher', 'name email avatar');
 
     res.status(201).json({ success: true, class: cls });
   } catch (error) {
@@ -536,7 +538,8 @@ router.put('/classes/:id', async (req, res) => {
       { new: true }
     )
       .populate('teachers', 'name email avatar')
-      .populate('students', 'name email avatar');
+      .populate('students', 'name email avatar')
+      .populate('homeroomTeacher', 'name email avatar');
 
     if (!cls) return res.status(404).json({ message: 'Không tìm thấy lớp học' });
 
@@ -574,6 +577,10 @@ router.post('/classes/:id/members', async (req, res) => {
         return res.status(400).json({ message: 'Giáo viên đã có trong lớp này' });
       }
       cls.teachers.push(userId);
+      // Giáo viên đầu tiên được thêm vào lớp sẽ tự động là giáo viên chủ nhiệm
+      if (cls.teachers.length === 1 && !cls.homeroomTeacher) {
+        cls.homeroomTeacher = userId;
+      }
     } else if (user.role === 'student') {
       if (cls.students.some((s) => s.toString() === userId)) {
         return res.status(400).json({ message: 'Học sinh đã có trong lớp này' });
@@ -586,6 +593,7 @@ router.post('/classes/:id/members', async (req, res) => {
     await cls.save();
     await cls.populate('teachers', 'name email avatar');
     await cls.populate('students', 'name email avatar');
+    await cls.populate('homeroomTeacher', 'name email avatar');
 
     res.json({ success: true, class: cls });
   } catch (error) {
@@ -603,9 +611,40 @@ router.delete('/classes/:id/members/:userId', async (req, res) => {
     cls.teachers = cls.teachers.filter((t) => t.toString() !== userId);
     cls.students = cls.students.filter((s) => s.toString() !== userId);
 
+    // Nếu giáo viên chủ nhiệm bị xóa thì xóa trường này
+    if (cls.homeroomTeacher && cls.homeroomTeacher.toString() === userId) {
+      cls.homeroomTeacher = null;
+    }
+
     await cls.save();
     await cls.populate('teachers', 'name email avatar');
     await cls.populate('students', 'name email avatar');
+    await cls.populate('homeroomTeacher', 'name email avatar');
+
+    res.json({ success: true, class: cls });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// PUT /api/admin/classes/:id/homeroom - Đổi giáo viên chủ nhiệm
+router.put('/classes/:id/homeroom', async (req, res) => {
+  try {
+    const { teacherId } = req.body;
+    if (!teacherId) return res.status(400).json({ message: 'teacherId là bắt buộc' });
+
+    const cls = await Class.findById(req.params.id);
+    if (!cls) return res.status(404).json({ message: 'Không tìm thấy lớp học' });
+
+    if (!cls.teachers.some((t) => t.toString() === teacherId)) {
+      return res.status(400).json({ message: 'Giáo viên không thuộc lớp này' });
+    }
+
+    cls.homeroomTeacher = teacherId;
+    await cls.save();
+    await cls.populate('teachers', 'name email avatar');
+    await cls.populate('students', 'name email avatar');
+    await cls.populate('homeroomTeacher', 'name email avatar');
 
     res.json({ success: true, class: cls });
   } catch (error) {
