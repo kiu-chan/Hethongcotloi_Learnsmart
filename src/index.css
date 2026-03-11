@@ -110,3 +110,71 @@ html, body, #root {
 .formula-chip .katex {
   font-size: 1em;
 }
+
+/* ===== Quiz Game Animations ===== */
+@keyframes confettiFall {
+  0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+@keyframes flashOverlay {
+  0%   { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+
+@keyframes correctFlash {
+  0%   { opacity: 0; transform: scale(0.5); }
+  30%  { opacity: 1; transform: scale(1.15); }
+  60%  { transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes starBurst {
+  0%   { transform: translate(0,0) scale(1) rotate(0deg); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0) rotate(var(--rot)); opacity: 0; }
+}
+
+@keyframes wrongShake {
+  0%,100% { transform: translateX(0); }
+  15%     { transform: translateX(-12px); }
+  30%     { transform: translateX(12px); }
+  45%     { transform: translateX(-8px); }
+  60%     { transform: translateX(8px); }
+  75%     { transform: translateX(-4px); }
+  90%     { transform: translateX(4px); }
+}
+
+@keyframes wrongFlash {
+  0%   { opacity: 0.5; }
+  100% { opacity: 0; }
+}
+
+@keyframes popBounce {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(-10deg); }
+  50%  { transform: translate(-50%, -50%) scale(1.2) rotate(4deg); }
+  70%  { transform: translate(-50%, -50%) scale(0.9) rotate(-2deg); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+}
+
+@keyframes fadeOutUp {
+  0%   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -60%) scale(0.8); }
+}
+
+@keyframes pulseGlow {
+  0%,100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.6); }
+  50%     { box-shadow: 0 0 0 12px rgba(34,197,94,0); }
+}
+
+@keyframes wrongPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.6); }
+  50%     { box-shadow: 0 0 0 12px rgba(239,68,68,0); }
+}
+
+@keyframes rainbowBorder {
+  0%   { border-color: #FFD700; }
+  25%  { border-color: #FF6B6B; }
+  50%  { border-color: #4ECDC4; }
+  75%  { border-color: #96CEB4; }
+  100% { border-color: #FFD700; }
+}

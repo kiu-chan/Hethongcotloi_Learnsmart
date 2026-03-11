@@ -11,7 +11,10 @@ import {
   FiList,
   FiClock,
   FiStar,
-  FiX
+  FiX,
+  FiLink,
+  FiImage,
+  FiExternalLink,
 } from 'react-icons/fi';
 import {
   IoDocumentTextOutline,
@@ -55,8 +58,11 @@ const TeacherDocuments = () => {
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadCategory, setUploadCategory] = useState('references');
   const [uploadName, setUploadName] = useState('');
+  const [uploadType, setUploadType] = useState('file'); // 'file' | 'image' | 'link'
+  const [uploadUrl, setUploadUrl] = useState('');
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef(null);
+  const imageInputRef = useRef(null);
 
   // Share modal state
   const [showShareModal, setShowShareModal] = useState(false);
@@ -116,26 +122,41 @@ const TeacherDocuments = () => {
     fetchStats();
   }, [fetchStats]);
 
+  const resetUploadModal = () => {
+    setShowUploadModal(false);
+    setUploadFile(null);
+    setUploadName('');
+    setUploadCategory('references');
+    setUploadType('file');
+    setUploadUrl('');
+  };
+
   const handleUpload = async () => {
-    if (!uploadFile) return;
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', uploadFile);
-      formData.append('category', uploadCategory);
-      if (uploadName) formData.append('name', uploadName);
-
-      const res = await fetch(`${API}/documents/upload`, {
-        method: 'POST',
-        headers: getAuthHeadersMultipart(),
-        body: formData,
-      });
+      let res;
+      if (uploadType === 'link') {
+        if (!uploadUrl || !uploadName) throw new Error('Vui lòng nhập tên và URL');
+        res = await fetch(`${API}/documents/link`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ name: uploadName, url: uploadUrl, category: uploadCategory }),
+        });
+      } else {
+        if (!uploadFile) throw new Error('Vui lòng chọn file');
+        const formData = new FormData();
+        formData.append('file', uploadFile);
+        formData.append('category', uploadCategory);
+        if (uploadName) formData.append('name', uploadName);
+        res = await fetch(`${API}/documents/upload`, {
+          method: 'POST',
+          headers: getAuthHeadersMultipart(),
+          body: formData,
+        });
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
-      setShowUploadModal(false);
-      setUploadFile(null);
-      setUploadName('');
-      setUploadCategory('references');
+      resetUploadModal();
       fetchDocuments();
       fetchStats();
     } catch (err) {
@@ -296,6 +317,8 @@ const TeacherDocuments = () => {
     return statsData.categories?.[catId] || 0;
   };
 
+  const isImageType = (type) => ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(type);
+
   const getFileIcon = (type) => {
     switch (type) {
       case 'docx':
@@ -309,6 +332,14 @@ const TeacherDocuments = () => {
       case 'xlsx':
       case 'xls':
         return { icon: FiFile, color: 'text-green-500', bg: 'bg-green-50' };
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+      case 'webp':
+        return { icon: FiImage, color: 'text-purple-500', bg: 'bg-purple-50' };
+      case 'link':
+        return { icon: FiLink, color: 'text-sky-500', bg: 'bg-sky-50' };
       default:
         return { icon: FiFile, color: 'text-gray-500', bg: 'bg-gray-50' };
     }
@@ -447,19 +478,39 @@ const TeacherDocuments = () => {
                 }`}
               >
                 {/* Thumbnail */}
-                <div className={`relative h-32 ${fileIcon.bg} rounded-t-xl flex items-center justify-center`}>
-                  <Icon className={`w-12 h-12 ${fileIcon.color}`} />
+                <div className={`relative h-32 ${isImageType(doc.type) ? '' : fileIcon.bg} rounded-t-xl flex items-center justify-center overflow-hidden`}>
+                  {isImageType(doc.type) ? (
+                    <img
+                      src={`/uploads/${doc.filePath}`}
+                      alt={doc.name}
+                      className="w-full h-full object-cover rounded-t-xl"
+                    />
+                  ) : (
+                    <Icon className={`w-12 h-12 ${fileIcon.color}`} />
+                  )}
 
                   {/* Actions Overlay */}
                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all rounded-t-xl flex items-center justify-center opacity-0 group-hover:opacity-100">
                     <div className="flex gap-2">
-                      <button
-                        onClick={() => handleDownload(doc._id)}
-                        className="p-2 bg-white rounded-lg hover:bg-gray-100 transition-colors"
-                        title="Tải xuống"
-                      >
-                        <FiDownload className="w-4 h-4 text-gray-700" />
-                      </button>
+                      {doc.type === 'link' ? (
+                        <a
+                          href={doc.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-2 bg-white rounded-lg hover:bg-gray-100 transition-colors"
+                          title="Mở link"
+                        >
+                          <FiExternalLink className="w-4 h-4 text-sky-600" />
+                        </a>
+                      ) : (
+                        <button
+                          onClick={() => handleDownload(doc._id)}
+                          className="p-2 bg-white rounded-lg hover:bg-gray-100 transition-colors"
+                          title="Tải xuống"
+                        >
+                          <FiDownload className="w-4 h-4 text-gray-700" />
+                        </button>
+                      )}
                       <button
                         onClick={() => openShareModal(doc)}
                         className="p-2 bg-white rounded-lg hover:bg-gray-100 transition-colors"
@@ -604,13 +655,25 @@ const TeacherDocuments = () => {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleDownload(doc._id)}
-                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                          title="Tải xuống"
-                        >
-                          <FiDownload className="w-4 h-4 text-gray-600" />
-                        </button>
+                        {doc.type === 'link' ? (
+                          <a
+                            href={doc.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Mở link"
+                          >
+                            <FiExternalLink className="w-4 h-4 text-sky-600" />
+                          </a>
+                        ) : (
+                          <button
+                            onClick={() => handleDownload(doc._id)}
+                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Tải xuống"
+                          >
+                            <FiDownload className="w-4 h-4 text-gray-600" />
+                          </button>
+                        )}
                         <button
                           onClick={() => openShareModal(doc)}
                           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -736,83 +799,130 @@ const TeacherDocuments = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-2xl w-full p-8">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">Tải tài liệu lên</h2>
-              <button
-                onClick={() => {
-                  setShowUploadModal(false);
-                  setUploadFile(null);
-                  setUploadName('');
-                  setUploadCategory('references');
-                }}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
+              <h2 className="text-2xl font-bold text-gray-800">Thêm tài liệu</h2>
+              <button onClick={resetUploadModal} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                 <FiX className="w-6 h-6 text-gray-600" />
               </button>
             </div>
 
-            {/* Upload Area */}
-            <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragActive(true);
-              }}
-              onDragLeave={() => setDragActive(false)}
-              onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-xl p-12 text-center transition-colors mb-6 ${
-                dragActive
-                  ? 'border-emerald-500 bg-emerald-50'
-                  : 'border-gray-300 hover:border-emerald-500'
-              }`}
-            >
-              {uploadFile ? (
-                <div>
-                  <div className="w-16 h-16 bg-emerald-50 rounded-xl flex items-center justify-center mx-auto mb-3">
-                    <FiFile className="w-8 h-8 text-emerald-600" />
-                  </div>
-                  <p className="text-gray-800 font-medium mb-1">{uploadFile.name}</p>
-                  <p className="text-sm text-gray-500 mb-3">
-                    {(uploadFile.size / 1048576).toFixed(1)} MB
-                  </p>
-                  <button
-                    onClick={() => setUploadFile(null)}
-                    className="text-sm text-red-500 hover:text-red-600"
-                  >
-                    Chọn file khác
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div className="w-20 h-20 bg-emerald-50 rounded-xl flex items-center justify-center mx-auto mb-4">
-                    <IoCloudUploadOutline className="w-10 h-10 text-emerald-600" />
-                  </div>
-                  <p className="text-gray-700 font-medium mb-2">Kéo thả file vào đây</p>
-                  <p className="text-sm text-gray-500 mb-4">hoặc</p>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="px-6 py-3 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 transition-colors"
-                  >
-                    Chọn file từ máy
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    className="hidden"
-                    accept=".doc,.docx,.pdf,.ppt,.pptx,.xls,.xlsx,.txt"
-                    onChange={handleFileInputChange}
-                  />
-                  <p className="text-xs text-gray-400 mt-4">
-                    Hỗ trợ: DOC, DOCX, PDF, PPT, PPTX, XLS, XLSX (Tối đa 50MB)
-                  </p>
-                </>
-              )}
+            {/* Type Tabs */}
+            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl mb-6">
+              {[
+                { key: 'file', label: 'Tài liệu', icon: FiFile },
+                { key: 'image', label: 'Hình ảnh', icon: FiImage },
+                { key: 'link', label: 'Link URL', icon: FiLink },
+              ].map(({ key, label, icon: TabIcon }) => (
+                <button
+                  key={key}
+                  onClick={() => { setUploadType(key); setUploadFile(null); setUploadName(''); setUploadUrl(''); }}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                    uploadType === key ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <TabIcon className="w-4 h-4" />
+                  {label}
+                </button>
+              ))}
             </div>
 
-            {/* Name */}
-            {uploadFile && (
+            {/* File / Image Upload Area */}
+            {(uploadType === 'file' || uploadType === 'image') && (
+              <div
+                onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+                onDragLeave={() => setDragActive(false)}
+                onDrop={handleDrop}
+                className={`border-2 border-dashed rounded-xl p-10 text-center transition-colors mb-6 ${
+                  dragActive ? 'border-emerald-500 bg-emerald-50' : 'border-gray-300 hover:border-emerald-500'
+                }`}
+              >
+                {uploadFile ? (
+                  <div>
+                    {uploadType === 'image' ? (
+                      <img
+                        src={URL.createObjectURL(uploadFile)}
+                        alt="preview"
+                        className="w-32 h-32 object-cover rounded-xl mx-auto mb-3"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 bg-emerald-50 rounded-xl flex items-center justify-center mx-auto mb-3">
+                        <FiFile className="w-8 h-8 text-emerald-600" />
+                      </div>
+                    )}
+                    <p className="text-gray-800 font-medium mb-1">{uploadFile.name}</p>
+                    <p className="text-sm text-gray-500 mb-3">{(uploadFile.size / 1048576).toFixed(1)} MB</p>
+                    <button onClick={() => setUploadFile(null)} className="text-sm text-red-500 hover:text-red-600">
+                      Chọn file khác
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="w-20 h-20 bg-emerald-50 rounded-xl flex items-center justify-center mx-auto mb-4">
+                      {uploadType === 'image'
+                        ? <FiImage className="w-10 h-10 text-emerald-600" />
+                        : <IoCloudUploadOutline className="w-10 h-10 text-emerald-600" />
+                      }
+                    </div>
+                    <p className="text-gray-700 font-medium mb-2">Kéo thả file vào đây</p>
+                    <p className="text-sm text-gray-500 mb-4">hoặc</p>
+                    <button
+                      onClick={() => uploadType === 'image' ? imageInputRef.current?.click() : fileInputRef.current?.click()}
+                      className="px-6 py-3 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 transition-colors"
+                    >
+                      Chọn file từ máy
+                    </button>
+                    <input ref={fileInputRef} type="file" className="hidden"
+                      accept=".doc,.docx,.pdf,.ppt,.pptx,.xls,.xlsx,.txt"
+                      onChange={handleFileInputChange}
+                    />
+                    <input ref={imageInputRef} type="file" className="hidden"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      onChange={handleFileInputChange}
+                    />
+                    <p className="text-xs text-gray-400 mt-4">
+                      {uploadType === 'image'
+                        ? 'Hỗ trợ: JPG, PNG, GIF, WEBP (Tối đa 50MB)'
+                        : 'Hỗ trợ: DOC, DOCX, PDF, PPT, PPTX, XLS, XLSX (Tối đa 50MB)'
+                      }
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Link Input */}
+            {uploadType === 'link' && (
+              <div className="mb-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tên tài liệu <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    value={uploadName}
+                    onChange={(e) => setUploadName(e.target.value)}
+                    placeholder="Ví dụ: Tài liệu học tập chương 1"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">URL tài liệu <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <FiLink className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="url"
+                      value={uploadUrl}
+                      onChange={(e) => setUploadUrl(e.target.value)}
+                      placeholder="https://drive.google.com/..."
+                      className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">Google Drive, YouTube, website tài liệu...</p>
+                </div>
+              </div>
+            )}
+
+            {/* Name (for file/image only) */}
+            {(uploadType === 'file' || uploadType === 'image') && uploadFile && (
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tên tài liệu
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Tên tài liệu</label>
                 <input
                   type="text"
                   value={uploadName}
@@ -823,7 +933,7 @@ const TeacherDocuments = () => {
               </div>
             )}
 
-            {/* Category Selection */}
+            {/* Category */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">Danh mục</label>
               <select
@@ -832,9 +942,7 @@ const TeacherDocuments = () => {
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
               >
                 {categoriesList.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
                 ))}
               </select>
             </div>
@@ -842,22 +950,17 @@ const TeacherDocuments = () => {
             {/* Actions */}
             <div className="flex gap-3">
               <button
-                onClick={() => {
-                  setShowUploadModal(false);
-                  setUploadFile(null);
-                  setUploadName('');
-                  setUploadCategory('references');
-                }}
+                onClick={resetUploadModal}
                 className="flex-1 px-6 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-semibold text-gray-700 transition-colors"
               >
                 Hủy
               </button>
               <button
                 onClick={handleUpload}
-                disabled={!uploadFile || uploading}
+                disabled={uploading || (uploadType === 'link' ? (!uploadUrl || !uploadName) : !uploadFile)}
                 className="flex-1 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all disabled:opacity-50"
               >
-                {uploading ? 'Đang tải lên...' : 'Tải lên'}
+                {uploading ? 'Đang lưu...' : uploadType === 'link' ? 'Thêm link' : 'Tải lên'}
               </button>
             </div>
           </div>

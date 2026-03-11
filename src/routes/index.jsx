@@ -2,7 +2,6 @@ import Home from "../pages/Home/index";
 import About from "../pages/About/index";
 import LoginPage from "../pages/account/LoginPage";
 import RegisterPage from "../pages/account/RegisterPage";
-import ForgotPasswordPage from "../pages/account/ForgotPasswordPage";
 import ResetPasswordPage from "../pages/account/ResetPasswordPage";
 import FeaturesPage from "../pages/Features/index";
 import GuidePage from "../pages/Guide/index";
@@ -53,11 +52,6 @@ const publicRoutes = [
   {
     path: "/about",
     component: About,
-    layout: DefaultLayout,
-  },
-  {
-    path: "/forgot-password",
-    component: ForgotPasswordPage,
     layout: DefaultLayout,
   },
   {

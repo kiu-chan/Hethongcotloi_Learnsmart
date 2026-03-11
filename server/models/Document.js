@@ -10,7 +10,7 @@ const documentSchema = new mongoose.Schema(
     originalName: { type: String },
     type: {
       type: String,
-      enum: ['doc', 'docx', 'pdf', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'other'],
+      enum: ['doc', 'docx', 'pdf', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'link', 'other'],
       default: 'other',
     },
     category: {
@@ -19,7 +19,8 @@ const documentSchema = new mongoose.Schema(
       default: 'references',
     },
     size: { type: Number, default: 0 },
-    filePath: { type: String, required: true },
+    filePath: { type: String, default: '' },
+    url: { type: String, default: '' },
     isFavorite: { type: Boolean, default: false },
     sharedWith: { type: Number, default: 0 },
     sharedClasses: { type: [String], default: [] },

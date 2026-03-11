@@ -1,37 +1,56 @@
 import { useState, useRef, useEffect } from 'react';
 import { FiX, FiRefreshCw } from 'react-icons/fi';
-import { IoSparklesOutline, IoTrophyOutline, IoCheckmarkCircle, IoCloseCircle, IoStar } from 'react-icons/io5';
+import { IoSparklesOutline, IoTrophyOutline, IoCheckmarkCircle, IoCloseCircle, IoStar, IoSparkles } from 'react-icons/io5';
 
 const WHEEL_COLORS = [
   '#3B82F6', '#10B981', '#F59E0B', '#EF4444',
   '#8B5CF6', '#EC4899', '#14B8A6', '#F97316',
 ];
 
-const CONFETTI_COLORS = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE'];
+const CONFETTI_COLORS = [
+  '#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1',
+  '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8',
+  '#F7DC6F', '#BB8FCE', '#FF9FF3', '#54A0FF',
+];
 
-const CorrectOverlay = ({ onDone }) => {
-  const particles = Array.from({ length: 30 }, (_, i) => ({
+/* -------- Hiệu ứng TRẢ LỜI ĐÚNG -------- */
+const CorrectEffect = ({ onDone }) => {
+  const confetti = Array.from({ length: 70 }, (_, i) => ({
     id: i,
     color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-    left: `${5 + Math.random() * 90}%`,
-    delay: `${Math.random() * 0.5}s`,
-    duration: `${0.8 + Math.random() * 0.6}s`,
-    size: `${6 + Math.floor(Math.random() * 8)}px`,
-    shape: i % 3 === 0 ? 'circle' : i % 3 === 1 ? 'square' : 'star',
-    rotate: `${Math.random() * 720}deg`,
+    left: `${2 + Math.random() * 96}%`,
+    delay: `${Math.random() * 0.6}s`,
+    duration: `${0.9 + Math.random() * 0.8}s`,
+    size: `${7 + Math.floor(Math.random() * 10)}px`,
+    shape: i % 4 === 0 ? 'circle' : i % 4 === 1 ? 'square' : i % 4 === 2 ? 'star' : 'diamond',
   }));
 
+  const stars = Array.from({ length: 14 }, (_, i) => {
+    const angle = (i / 14) * 360;
+    const dist = 80 + Math.random() * 120;
+    const dx = Math.cos((angle * Math.PI) / 180) * dist;
+    const dy = Math.sin((angle * Math.PI) / 180) * dist;
+    return { id: i, dx, dy, color: CONFETTI_COLORS[i % CONFETTI_COLORS.length], size: 10 + Math.floor(Math.random() * 12) };
+  });
+
   useEffect(() => {
-    const t = setTimeout(onDone, 1800);
+    const t = setTimeout(onDone, 2000);
     return () => clearTimeout(t);
   }, [onDone]);
 
   return (
-    <div className="fixed inset-0 z-[60] pointer-events-none overflow-hidden">
-      {/* Flash overlay */}
-      <div className="absolute inset-0 animate-[flashOverlay_0.4s_ease-out]" style={{ background: 'radial-gradient(circle at center, rgba(255,215,0,0.25) 0%, transparent 70%)' }} />
-      {/* Confetti particles */}
-      {particles.map((p) => (
+    <div className="fixed inset-0 z-[70] pointer-events-none overflow-hidden">
+      {/* Flash vàng rực */}
+      <div
+        className="absolute inset-0"
+        style={{ animation: 'flashOverlay 0.5s ease-out forwards', background: 'radial-gradient(circle at center, rgba(255,215,0,0.45) 0%, rgba(255,165,0,0.15) 50%, transparent 80%)' }}
+      />
+      <div
+        className="absolute inset-0"
+        style={{ animation: 'flashOverlay 0.25s ease-out forwards', background: 'rgba(255,255,255,0.35)' }}
+      />
+      {/* Confetti mưa */}
+      {confetti.map((p) => (
         <div
           key={p.id}
           className="absolute top-0"
@@ -40,15 +59,96 @@ const CorrectOverlay = ({ onDone }) => {
             width: p.size,
             height: p.size,
             backgroundColor: p.shape !== 'star' ? p.color : 'transparent',
-            borderRadius: p.shape === 'circle' ? '50%' : p.shape === 'square' ? '2px' : '0',
+            borderRadius: p.shape === 'circle' ? '50%' : p.shape === 'diamond' ? '0' : p.shape === 'square' ? '2px' : '0',
+            transform: p.shape === 'diamond' ? 'rotate(45deg)' : undefined,
             animation: `confettiFall ${p.duration} ${p.delay} ease-in forwards`,
           }}
         >
-          {p.shape === 'star' && (
-            <IoStar style={{ color: p.color, width: p.size, height: p.size }} />
-          )}
+          {p.shape === 'star' && <IoStar style={{ color: p.color, width: p.size, height: p.size }} />}
         </div>
       ))}
+      {/* Tia sao bùng nổ từ tâm */}
+      <div className="absolute" style={{ top: '45%', left: '50%' }}>
+        {stars.map((s) => (
+          <div
+            key={s.id}
+            className="absolute"
+            style={{
+              '--dx': `${s.dx}px`,
+              '--dy': `${s.dy}px`,
+              '--rot': `${Math.random() * 720}deg`,
+              animation: `starBurst 0.9s ${Math.random() * 0.2}s ease-out forwards`,
+              width: s.size,
+              height: s.size,
+            }}
+          >
+            <IoStar style={{ color: s.color, width: s.size, height: s.size }} />
+          </div>
+        ))}
+      </div>
+      {/* Nhãn "Chính xác!" */}
+      <div
+        className="absolute"
+        style={{
+          top: '42%', left: '50%',
+          animation: 'popBounce 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards, fadeOutUp 0.4s 1.5s ease-in forwards',
+        }}
+      >
+        <div
+          className="px-8 py-4 rounded-2xl text-white font-black text-4xl select-none"
+          style={{
+            background: 'linear-gradient(135deg, #FFD700 0%, #FF8C00 50%, #FF6B6B 100%)',
+            boxShadow: '0 0 40px rgba(255,215,0,0.8), 0 0 80px rgba(255,140,0,0.4)',
+            textShadow: '0 2px 8px rgba(0,0,0,0.3)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          ✨ Chính xác! ✨
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* -------- Hiệu ứng TRẢ LỜI SAI -------- */
+const WrongEffect = ({ onDone }) => {
+  useEffect(() => {
+    const t = setTimeout(onDone, 1000);
+    return () => clearTimeout(t);
+  }, [onDone]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] pointer-events-none overflow-hidden"
+      style={{ animation: 'wrongShake 0.5s ease-out' }}
+    >
+      <div
+        className="absolute inset-0"
+        style={{ animation: 'wrongFlash 0.6s ease-out forwards', background: 'rgba(239,68,68,0.25)' }}
+      />
+      <div
+        className="absolute inset-0 border-8 border-red-500"
+        style={{ animation: 'wrongFlash 0.8s ease-out forwards' }}
+      />
+      <div
+        className="absolute"
+        style={{
+          top: '42%', left: '50%',
+          animation: 'popBounce 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards, fadeOutUp 0.4s 0.5s ease-in forwards',
+        }}
+      >
+        <div
+          className="px-8 py-4 rounded-2xl text-white font-black text-4xl select-none"
+          style={{
+            background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
+            boxShadow: '0 0 30px rgba(239,68,68,0.7)',
+            textShadow: '0 2px 8px rgba(0,0,0,0.3)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          ❌ Sai rồi!
+        </div>
+      </div>
     </div>
   );
 };
@@ -63,6 +163,7 @@ const WheelGameModal = ({ wheel, onClose, onRecordPlay }) => {
   const [showAnswer, setShowAnswer] = useState(false);
   const [answerEffect, setAnswerEffect] = useState(null); // 'correct' | 'wrong' | null
   const [showCorrectOverlay, setShowCorrectOverlay] = useState(false);
+  const [showWrongOverlay, setShowWrongOverlay] = useState(false);
 
   const wheelRef = useRef(null);
   const currentRotationRef = useRef(0);
@@ -98,6 +199,7 @@ const WheelGameModal = ({ wheel, onClose, onRecordPlay }) => {
     setSelectedAnswer(null);
     setShowAnswer(false);
     setAnswerEffect(null);
+    setShowWrongOverlay(false);
 
     if (audioRef.current) {
       audioRef.current.currentTime = 0;
@@ -149,7 +251,8 @@ const WheelGameModal = ({ wheel, onClose, onRecordPlay }) => {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      {showCorrectOverlay && <CorrectOverlay onDone={() => setShowCorrectOverlay(false)} />}
+      {showCorrectOverlay && <CorrectEffect onDone={() => setShowCorrectOverlay(false)} />}
+      {showWrongOverlay && <WrongEffect onDone={() => setShowWrongOverlay(false)} />}
       <div className="bg-white rounded-3xl max-w-2xl w-full overflow-hidden shadow-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 px-8 py-5">
@@ -360,6 +463,7 @@ const WheelGameModal = ({ wheel, onClose, onRecordPlay }) => {
                                 const effect = idx === currentQuestion.correct ? 'correct' : 'wrong';
                                 setAnswerEffect(effect);
                                 if (effect === 'correct') setShowCorrectOverlay(true);
+                                else setShowWrongOverlay(true);
                               }}
                               className={`flex items-center gap-2 px-3 py-2 border rounded-xl text-sm font-medium transition-all text-left ${cls} ${animation}`}
                             >
@@ -391,6 +495,7 @@ const WheelGameModal = ({ wheel, onClose, onRecordPlay }) => {
                       setShowAnswer(false);
                       setAnswerEffect(null);
                       setShowCorrectOverlay(false);
+                      setShowWrongOverlay(false);
                     }}
                     className="mt-3 flex items-center gap-1.5 text-sm text-orange-500 hover:text-orange-600 font-medium transition-colors"
                   >

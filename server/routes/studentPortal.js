@@ -747,7 +747,7 @@ router.get('/documents', async (req, res) => {
       ...(teacherIds.length > 0 && { teacher: { $in: teacherIds } }),
       sharedClasses: { $in: classNames },
     })
-      .select('name originalName type size formattedSize sharedClasses createdAt filePath')
+      .select('name originalName type size formattedSize sharedClasses createdAt filePath url')
       .sort({ createdAt: -1 });
 
     res.json({ success: true, documents });
@@ -771,6 +771,11 @@ router.get('/documents/:id/download', async (req, res) => {
 
     if (!doc) {
       return res.status(404).json({ message: 'Không tìm thấy tài liệu hoặc chưa được chia sẻ' });
+    }
+
+    // Link type: trả về URL để client mở
+    if (doc.type === 'link') {
+      return res.json({ success: true, url: doc.url });
     }
 
     const uploadDir = path.join(__dirname, '..', 'uploads');

@@ -153,9 +153,6 @@ const Login = () => {
                 <label className="block text-sm font-medium text-gray-700">
                   Mật khẩu
                 </label>
-                <Link to="/forgot-password" className="text-sm text-emerald-600 hover:text-emerald-700">
-                  Quên mật khẩu?
-                </Link>
               </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">

@@ -11,6 +11,9 @@ import {
   FiPlay,
   FiDownload,
   FiFile,
+  FiExternalLink,
+  FiImage,
+  FiLink,
 } from 'react-icons/fi';
 import { IoSchoolOutline, IoDocumentTextOutline } from 'react-icons/io5';
 import HomeworkSection from './HomeworkSection';
@@ -39,13 +42,24 @@ const SharedDocumentsSection = ({ selectedClass }) => {
     fetchDocs();
   }, []);
 
-  const handleDownload = async (id) => {
+  const handleDownload = async (doc) => {
+    if (doc.type === 'link') {
+      window.open(doc.url, '_blank', 'noopener,noreferrer');
+      return;
+    }
     try {
       const token = localStorage.getItem('authToken');
-      const res = await fetch(`/api/student-portal/documents/${id}/download`, {
+      const res = await fetch(`/api/student-portal/documents/${doc._id}/download`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error('Download failed');
+      // If server returns JSON (link type handled server-side too), open URL
+      const contentType = res.headers.get('Content-Type') || '';
+      if (contentType.includes('application/json')) {
+        const data = await res.json();
+        if (data.url) { window.open(data.url, '_blank', 'noopener,noreferrer'); }
+        return;
+      }
       const blob = await res.blob();
       const contentDisposition = res.headers.get('Content-Disposition');
       let filename = 'download';
@@ -66,14 +80,24 @@ const SharedDocumentsSection = ({ selectedClass }) => {
     }
   };
 
+  const isImageType = (type) => ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(type);
+
   const getFileColor = (type) => {
     switch (type) {
       case 'pdf': return 'text-red-500 bg-red-50';
       case 'docx': case 'doc': return 'text-blue-500 bg-blue-50';
       case 'pptx': case 'ppt': return 'text-orange-500 bg-orange-50';
       case 'xlsx': case 'xls': return 'text-green-500 bg-green-50';
+      case 'jpg': case 'jpeg': case 'png': case 'gif': case 'webp': return 'text-purple-500 bg-purple-50';
+      case 'link': return 'text-sky-500 bg-sky-50';
       default: return 'text-gray-500 bg-gray-50';
     }
+  };
+
+  const getDocIcon = (type) => {
+    if (isImageType(type)) return FiImage;
+    if (type === 'link') return FiLink;
+    return FiFile;
   };
 
   const filtered = selectedClass
@@ -103,27 +127,52 @@ const SharedDocumentsSection = ({ selectedClass }) => {
     <div className="space-y-3">
       {filtered.map((doc) => {
         const colorClass = getFileColor(doc.type);
+        const DocIcon = getDocIcon(doc.type);
         return (
           <div key={doc._id} className="bg-white rounded-xl border border-gray-100 p-4 hover:shadow-sm transition-shadow">
             <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${colorClass}`}>
-                <FiFile className="w-5 h-5" />
-              </div>
+              {/* Thumbnail for images, icon for others */}
+              {isImageType(doc.type) ? (
+                <img
+                  src={`/uploads/${doc.filePath}`}
+                  alt={doc.name}
+                  className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                />
+              ) : (
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${colorClass}`}>
+                  <DocIcon className="w-5 h-5" />
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-gray-800 text-sm truncate">{doc.name}</p>
                 <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400">
-                  <span className="uppercase font-medium">{doc.type}</span>
-                  <span>{doc.formattedSize}</span>
+                  <span className="uppercase font-medium">{doc.type === 'link' ? 'Link' : doc.type}</span>
+                  {doc.type !== 'link' && <span>{doc.formattedSize}</span>}
                   <span>{new Date(doc.createdAt).toLocaleDateString('vi-VN')}</span>
                 </div>
+                {doc.type === 'link' && (
+                  <p className="text-xs text-sky-500 truncate mt-0.5">{doc.url}</p>
+                )}
               </div>
-              <button
-                onClick={() => handleDownload(doc._id)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg transition-colors flex-shrink-0"
-              >
-                <FiDownload className="w-3.5 h-3.5" />
-                Tải về
-              </button>
+              {doc.type === 'link' ? (
+                <a
+                  href={doc.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white text-xs font-medium rounded-lg transition-colors flex-shrink-0"
+                >
+                  <FiExternalLink className="w-3.5 h-3.5" />
+                  Mở link
+                </a>
+              ) : (
+                <button
+                  onClick={() => handleDownload(doc)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg transition-colors flex-shrink-0"
+                >
+                  <FiDownload className="w-3.5 h-3.5" />
+                  Tải về
+                </button>
+              )}
             </div>
           </div>
         );

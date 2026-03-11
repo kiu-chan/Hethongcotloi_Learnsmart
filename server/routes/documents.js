@@ -34,6 +34,10 @@ const fileFilter = (req, file, cb) => {
     'application/vnd.ms-excel',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'text/plain',
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
   ];
   if (allowed.includes(file.mimetype)) {
     cb(null, true);
@@ -54,7 +58,7 @@ router.use(protect, authorize('teacher', 'admin'));
 
 const getFileType = (filename) => {
   const ext = path.extname(filename).toLowerCase().replace('.', '');
-  const supported = ['doc', 'docx', 'pdf', 'ppt', 'pptx', 'xls', 'xlsx', 'txt'];
+  const supported = ['doc', 'docx', 'pdf', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'jpg', 'jpeg', 'png', 'gif', 'webp'];
   return supported.includes(ext) ? ext : 'other';
 };
 
@@ -157,6 +161,28 @@ router.post('/upload', upload.single('file'), async (req, res) => {
   }
 });
 
+// POST /api/documents/link - Tạo tài liệu dạng link
+router.post('/link', async (req, res) => {
+  try {
+    const { name, url, category } = req.body;
+    if (!url) return res.status(400).json({ message: 'Vui lòng nhập URL' });
+    if (!name) return res.status(400).json({ message: 'Vui lòng nhập tên tài liệu' });
+
+    const doc = await Document.create({
+      name,
+      type: 'link',
+      url,
+      category: category || 'references',
+      size: 0,
+      filePath: '',
+      teacher: req.user._id,
+    });
+    res.status(201).json({ success: true, document: doc });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
 // PUT /api/documents/:id - Cập nhật tài liệu
 router.put('/:id', async (req, res) => {
   try {
@@ -233,10 +259,12 @@ router.delete('/:id', async (req, res) => {
     if (!doc) {
       return res.status(404).json({ message: 'Không tìm thấy tài liệu' });
     }
-    // Xóa file vật lý
-    const filePath = path.join(uploadDir, doc.filePath);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    // Xóa file vật lý (nếu có)
+    if (doc.filePath) {
+      const filePath = path.join(uploadDir, doc.filePath);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
     }
     res.json({ success: true, message: 'Đã xóa tài liệu' });
   } catch (error) {
