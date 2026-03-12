@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { FiPlus, FiSearch, FiX, FiLoader, FiDownload, FiUpload, FiTrash2, FiChevronDown, FiFileText } from 'react-icons/fi';
+import { FiPlus, FiSearch, FiX, FiLoader, FiDownload, FiUpload, FiTrash2, FiFileText, FiChevronDown } from 'react-icons/fi';
 import { MdOutlineClass } from 'react-icons/md';
 import { API_BASE, getToken } from './constants';
 import { exportClassesToExcel, downloadTemplate } from './excelHelpers';
@@ -19,6 +19,7 @@ const AdminClasses = () => {
   const [addMemberCls, setAddMemberCls] = useState(null);
   const [showImport, setShowImport] = useState(false);
   const [showDownload, setShowDownload] = useState(false);
+  const downloadRef = useRef(null);
 
   const fetchClasses = useCallback(async () => {
     setLoading(true);
@@ -42,6 +43,17 @@ const AdminClasses = () => {
   useEffect(() => {
     fetchClasses();
   }, [fetchClasses]);
+
+  useEffect(() => {
+    if (!showDownload) return;
+    const handleClickOutside = (e) => {
+      if (downloadRef.current && !downloadRef.current.contains(e.target)) {
+        setShowDownload(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showDownload]);
 
   const handleSaved = (savedCls, isEdit) => {
     if (isEdit) {
@@ -100,13 +112,41 @@ const AdminClasses = () => {
             Nhập từ Excel
           </button>
 
-          <button
-            onClick={() => setShowDownload(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
-          >
-            <FiDownload size={16} />
-            Tải xuống
-          </button>
+          {/* Download dropdown */}
+          <div className="relative" ref={downloadRef}>
+            <button
+              onClick={() => setShowDownload((v) => !v)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+            >
+              <FiDownload size={16} />
+              Tải xuống
+              <FiChevronDown size={14} className={`transition-transform ${showDownload ? 'rotate-180' : ''}`} />
+            </button>
+            {showDownload && (
+              <div className="absolute right-0 mt-1.5 w-52 bg-white border border-gray-100 rounded-xl shadow-lg z-20 py-1 overflow-hidden">
+                <button
+                  onClick={() => { exportClassesToExcel(classes); setShowDownload(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-indigo-50 text-left transition-colors"
+                >
+                  <FiDownload size={15} className="text-indigo-500 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">Danh sách lớp học</p>
+                    <p className="text-xs text-gray-400">Xuất file .xlsx</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => { downloadTemplate(); setShowDownload(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-emerald-50 text-left transition-colors"
+                >
+                  <FiFileText size={15} className="text-emerald-500 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">File mẫu nhập liệu</p>
+                    <p className="text-xs text-gray-400">Template .xlsx</p>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
 
           <button
             onClick={() => setModalCls(null)}
@@ -205,7 +245,6 @@ const AdminClasses = () => {
 
       {/* Modals */}
       {showImport && <ImportModal onClose={() => setShowImport(false)} onImported={fetchClasses} />}
-      {showDownload && <DownloadPopup onClose={() => setShowDownload(false)} classes={classes} />}
       {modalCls !== undefined && <ClassModal cls={modalCls} onClose={() => setModalCls(undefined)} onSaved={handleSaved} />}
       {addMemberCls && <AddMemberModal cls={addMemberCls} onClose={() => setAddMemberCls(null)} onAdded={handleMemberUpdate} />}
 
