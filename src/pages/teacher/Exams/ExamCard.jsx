@@ -265,7 +265,7 @@ const ExamCard = ({ exam, onEdit, onDelete, onDuplicate, onStatusChange, onViewD
               </button>
               <button
                 onClick={() => onDelete(exam._id)}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
               >
                 <FiTrash2 className="w-4 h-4" />
                 <span>Xóa</span>
@@ -320,6 +320,13 @@ const ExamCard = ({ exam, onEdit, onDelete, onDuplicate, onStatusChange, onViewD
               >
                 <FiCopy className="w-4 h-4" />
                 <span>Sao chép</span>
+              </button>
+              <button
+                onClick={() => onDelete(exam._id)}
+                className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+              >
+                <FiTrash2 className="w-4 h-4" />
+                <span>Xóa</span>
               </button>
             </>
           )}
