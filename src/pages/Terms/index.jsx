@@ -63,9 +63,37 @@ Bằng cách đăng ký tài khoản hoặc sử dụng dịch vụ, bạn đồ
 function TermsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
+      <style>{`
+        @keyframes blob {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33%  { transform: translate(20px, -24px) scale(1.08); }
+          66%  { transform: translate(-16px, 16px) scale(0.94); }
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0px) scale(1); opacity: 0.3; }
+          50% { transform: translateY(-18px) scale(1.3); opacity: 0.6; }
+        }
+        .animate-blob { animation: blob 9s infinite ease-in-out; }
+        .animation-delay-2000 { animation-delay: 2s; }
+      `}</style>
+
       {/* Hero */}
-      <div className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white py-16">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-teal-600 text-white py-16">
+        <div className="absolute top-4 left-8 w-64 h-64 bg-white/10 rounded-full filter blur-3xl animate-blob" />
+        <div className="absolute bottom-4 right-8 w-64 h-64 bg-teal-300/20 rounded-full filter blur-3xl animate-blob animation-delay-2000" />
+        {[...Array(12)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute w-1.5 h-1.5 bg-white rounded-full opacity-30"
+            style={{
+              left: `${8 + i * 8}%`,
+              top: `${20 + (i % 4) * 20}%`,
+              animation: `float ${3 + (i % 3)}s ease-in-out infinite`,
+              animationDelay: `${i * 0.4}s`,
+            }}
+          />
+        ))}
+        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <FiFileText className="w-8 h-8" />
           </div>

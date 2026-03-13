@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiTarget,
   FiHeart,
@@ -36,7 +37,8 @@ const allMembers = [
   {
     name: 'Ma Thị Thu Thuý',
     role: 'Giáo viên chủ chốt',
-    description: 'Thiết kế phương pháp giảng dạy tích hợp công nghệ vào lớp học',
+    subrole: 'Định hướng nghiên cứu',
+    description: 'Định hướng nghiên cứu và thiết kế phương pháp giảng dạy tích hợp công nghệ vào lớp học',
     avatar: '👩‍🏫',
     tag: 'Nghiên cứu viên',
     gradient: 'from-cyan-400 to-blue-500',
@@ -168,7 +170,7 @@ function About() {
     clearInterval(autoRef.current);
     autoRef.current = setInterval(() => {
       setActiveIdx((i) => (i + 1) % allMembers.length);
-    }, 3500);
+    }, 2000);
   };
 
   useEffect(() => {
@@ -358,49 +360,84 @@ function About() {
       </section>
 
       {/* ── TEAM ── */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-gray-50 overflow-hidden">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10">
             <h2 className="text-3xl font-bold text-gray-800 mb-2">Đội ngũ thực hiện</h2>
             <p className="text-gray-500 text-sm">3 giáo viên nghiên cứu chủ chốt và 1 cộng tác viên kỹ thuật</p>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* 3-column slide: side | main | side — framer-motion spring */}
+          <div className="relative mx-auto" style={{ maxWidth: '700px', height: '340px' }}>
             {allMembers.map((m, i) => {
-              const isActive = i === activeIdx;
+              const n = allMembers.length;
+              let offset = i - activeIdx;
+              if (offset > n / 2) offset -= n;
+              if (offset < -n / 2) offset += n;
+
+              const isMain = offset === 0;
+              const isSide = Math.abs(offset) === 1;
+              const CARD_W = 250; // px
+
               return (
-                <div
+                <motion.div
                   key={i}
-                  onClick={() => { setActiveIdx(i); resetAuto(); }}
-                  className={`cursor-pointer rounded-2xl p-5 text-center transition-all duration-300 border
-                    ${isActive
-                      ? 'bg-white border-emerald-200 shadow-md -translate-y-1'
-                      : 'bg-white border-gray-100 hover:border-gray-200 hover:shadow-sm'
-                    }`}
+                  onClick={() => { if (!isMain) { setActiveIdx(i); resetAuto(); } }}
+                  animate={{
+                    x: offset * 195,
+                    scale: isMain ? 1 : 0.82,
+                    opacity: isMain ? 1 : isSide ? 0.55 : 0,
+                    zIndex: isMain ? 10 : isSide ? 5 : 0,
+                  }}
+                  initial={false}
+                  transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 0.8 }}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: '50%',
+                    marginLeft: `-${CARD_W / 2}px`,
+                    width: `${CARD_W}px`,
+                    pointerEvents: isMain || isSide ? 'auto' : 'none',
+                    cursor: isSide ? 'pointer' : 'default',
+                  }}
+                  className="rounded-2xl bg-white border border-gray-100 shadow-sm text-center"
                 >
-                  <div className={`w-16 h-16 mx-auto mb-3 rounded-full bg-gradient-to-br ${m.gradient} flex items-center justify-center text-3xl
-                    ${isActive ? 'shadow-md' : ''}`}
-                  >
-                    {m.avatar}
+                  <div className="p-5 pt-6">
+                    <div className={`mx-auto mb-3 rounded-full bg-gradient-to-br ${m.gradient} flex items-center justify-center
+                      ${isMain ? 'w-20 h-20 text-4xl shadow-lg' : 'w-12 h-12 text-2xl'}`}
+                    >
+                      {m.avatar}
+                    </div>
+
+                    <h3 className="font-semibold text-gray-900 text-base mb-0.5">{m.name}</h3>
+                    <p className="text-emerald-500 font-medium text-sm">{m.role}</p>
+
+                    <AnimatePresence mode="wait">
+                      {isMain && (
+                        <motion.div
+                          key={`detail-${i}`}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -6 }}
+                          transition={{ duration: 0.22 }}
+                        >
+                          {m.subrole && (
+                            <p className="text-teal-400 text-xs font-medium mt-0.5">{m.subrole}</p>
+                          )}
+                          <p className="text-gray-500 text-xs leading-relaxed mt-2 mb-3">{m.description}</p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    <span className={`inline-block font-medium px-2.5 py-0.5 rounded-full text-xs mt-1
+                      ${isMain
+                        ? `bg-gradient-to-r ${m.gradient} text-white`
+                        : 'bg-gray-100 text-gray-400'
+                      }`}>
+                      {m.tag}
+                    </span>
                   </div>
-
-                  <h3 className={`font-semibold text-sm mb-0.5 transition-colors ${isActive ? 'text-gray-900' : 'text-gray-700'}`}>
-                    {m.name}
-                  </h3>
-                  <p className="text-xs text-emerald-500 font-medium mb-2">{m.role}</p>
-
-                  <div className={`overflow-hidden transition-all duration-300 ${isActive ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'}`}>
-                    <p className="text-gray-500 text-xs leading-relaxed mb-3">{m.description}</p>
-                  </div>
-
-                  <span className={`inline-block text-xs font-medium px-2.5 py-0.5 rounded-full transition-all
-                    ${isActive
-                      ? `bg-gradient-to-r ${m.gradient} text-white`
-                      : 'bg-gray-100 text-gray-500'
-                    }`}>
-                    {m.tag}
-                  </span>
-                </div>
+                </motion.div>
               );
             })}
           </div>

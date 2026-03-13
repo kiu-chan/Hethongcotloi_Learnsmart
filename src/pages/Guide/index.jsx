@@ -164,6 +164,10 @@ function GuidePage() {
           33%  { transform: translate(20px, -24px) scale(1.08); }
           66%  { transform: translate(-16px, 16px) scale(0.94); }
         }
+        @keyframes float {
+          0%, 100% { transform: translateY(0px) scale(1); opacity: 0.3; }
+          50% { transform: translateY(-18px) scale(1.3); opacity: 0.6; }
+        }
         .animate-slide-up { animation: slideUp 0.65s ease both; }
         .animate-blob     { animation: blob 9s infinite ease-in-out; }
         .delay-100 { animation-delay: 0.1s; }
@@ -175,6 +179,19 @@ function GuidePage() {
       <section className="relative overflow-hidden bg-gradient-to-br from-emerald-50 via-white to-teal-50 py-20 lg:py-28">
         <div className="absolute top-10 left-10 w-80 h-80 bg-emerald-200 rounded-full mix-blend-multiply filter blur-3xl opacity-25 animate-blob" />
         <div className="absolute top-40 right-10 w-80 h-80 bg-teal-200 rounded-full mix-blend-multiply filter blur-3xl opacity-25 animate-blob animation-delay-2000" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-200 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob" style={{ animationDelay: '3s' }} />
+        {[...Array(12)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute w-2 h-2 bg-emerald-400 rounded-full opacity-30"
+            style={{
+              left: `${8 + i * 8}%`,
+              top: `${20 + (i % 4) * 20}%`,
+              animation: `float ${3 + (i % 3)}s ease-in-out infinite`,
+              animationDelay: `${i * 0.4}s`,
+            }}
+          />
+        ))}
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="animate-slide-up inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 rounded-full text-emerald-600 text-sm font-medium mb-6">
             <FiZap className="w-4 h-4" />
