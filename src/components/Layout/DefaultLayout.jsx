@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   FiMenu,
   FiX,
-  FiSearch,
   FiHome,
   FiInfo,
   FiMail,
@@ -12,15 +11,20 @@ import {
   FiLogOut,
   FiUser,
   FiHelpCircle,
+  FiGrid,
+  FiBook,
   FiFileText,
-  FiGrid
+  FiSettings,
+  FiBarChart2,
+  FiUsers,
+  FiMessageSquare,
+  FiChevronDown,
 } from 'react-icons/fi';
 import {
   IoSparklesOutline,
-  IoPricetagsOutline
+  IoGameControllerOutline,
 } from 'react-icons/io5';
 
-// Đổi menuItems thành các mục cho landing page
 const menuItems = [
   { name: 'Trang chủ', icon: FiHome, path: '/' },
   { name: 'Giới thiệu', icon: FiInfo, path: '/about' },
@@ -29,18 +33,58 @@ const menuItems = [
   { name: 'Liên hệ', icon: FiMail, path: '/contact' },
 ];
 
+const roleLinks = {
+  admin: [
+    { name: 'Dashboard', icon: FiGrid, path: '/admin' },
+    { name: 'Người dùng', icon: FiUsers, path: '/admin/users' },
+    { name: 'Lớp học', icon: FiBook, path: '/admin/classes' },
+    { name: 'Bài kiểm tra', icon: FiFileText, path: '/admin/exams' },
+    { name: 'Báo cáo', icon: FiBarChart2, path: '/admin/reports' },
+    { name: 'Cài đặt', icon: FiSettings, path: '/admin/settings' },
+  ],
+  teacher: [
+    { name: 'Dashboard', icon: FiGrid, path: '/teacher/dashboard' },
+    { name: 'Sổ tay', icon: FiBook, path: '/teacher/notebook' },
+    { name: 'Tài liệu', icon: FiFileText, path: '/teacher/documents' },
+    { name: 'Bài kiểm tra', icon: FiFileText, path: '/teacher/exams' },
+    { name: 'Trò chơi', icon: IoGameControllerOutline, path: '/teacher/games' },
+    { name: 'Học sinh', icon: FiUsers, path: '/teacher/students' },
+    { name: 'Thống kê', icon: FiBarChart2, path: '/teacher/statistics' },
+    { name: 'Trò chuyện', icon: FiMessageSquare, path: '/teacher/chat' },
+    { name: 'Cài đặt', icon: FiSettings, path: '/teacher/settings' },
+  ],
+  student: [
+    { name: 'Dashboard', icon: FiGrid, path: '/student/dashboard' },
+    { name: 'Lớp học', icon: FiBook, path: '/student/classroom' },
+    { name: 'Trò chơi', icon: IoGameControllerOutline, path: '/student/games' },
+    { name: 'Trò chuyện', icon: FiMessageSquare, path: '/student/chat' },
+    { name: 'Cài đặt', icon: FiSettings, path: '/student/settings' },
+  ],
+};
+
+const roleBadge = {
+  admin: { label: 'Quản trị viên', color: 'bg-purple-100 text-purple-700' },
+  teacher: { label: 'Giáo viên', color: 'bg-blue-100 text-blue-700' },
+  student: { label: 'Học sinh', color: 'bg-emerald-100 text-emerald-700' },
+};
+
 function DefaultLayout({ children }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
   const { currentUser, logout } = useAuth();
 
   const isLoggedIn = !!currentUser;
-  const dashboardPath = currentUser?.role === 'teacher' ? '/teacher/dashboard' : '/student/dashboard';
+  const role = currentUser?.role;
+  const links = roleLinks[role] || [];
+  const badge = roleBadge[role];
 
   const handleLogout = () => {
+    setDropdownOpen(false);
     setShowLogoutConfirm(true);
   };
 
@@ -62,12 +106,24 @@ function DefaultLayout({ children }) {
 
   useEffect(() => {
     setIsMenuOpen(false);
+    setDropdownOpen(false);
   }, [location]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header 
+      <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           scrolled ? 'bg-white shadow-md' : 'bg-white/95'
         }`}
@@ -95,8 +151,8 @@ function DefaultLayout({ children }) {
                     key={item.path}
                     to={item.path}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      isActive 
-                        ? 'bg-emerald-50 text-emerald-600' 
+                      isActive
+                        ? 'bg-emerald-50 text-emerald-600'
                         : 'text-gray-600 hover:bg-gray-100'
                     }`}
                   >
@@ -110,30 +166,71 @@ function DefaultLayout({ children }) {
             {/* Auth Buttons */}
             <div className="hidden lg:flex items-center gap-2">
               {isLoggedIn ? (
-                <>
-                  <Link
-                    to={dashboardPath}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    onClick={() => setDropdownOpen((v) => !v)}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors"
                   >
-                    <FiGrid className="w-4 h-4" />
-                    <span>Dashboard</span>
-                  </Link>
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-full">
                     <div className="w-7 h-7 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
                       {currentUser?.name?.charAt(0) || 'U'}
                     </div>
                     <span className="text-sm font-medium text-gray-700 max-w-[100px] truncate">
                       {currentUser?.name || 'User'}
                     </span>
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    <FiLogOut className="w-4 h-4" />
-                    <span>Đăng xuất</span>
+                    <FiChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
                   </button>
-                </>
+
+                  {/* Dropdown */}
+                  {dropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50">
+                      {/* User info */}
+                      <div className="px-4 py-3 border-b border-gray-100">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center text-white font-bold">
+                            {currentUser?.name?.charAt(0) || 'U'}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-gray-800 truncate">{currentUser?.name || 'User'}</p>
+                            <p className="text-xs text-gray-500 truncate">{currentUser?.email}</p>
+                          </div>
+                        </div>
+                        {badge && (
+                          <span className={`mt-2 inline-block text-xs font-medium px-2 py-0.5 rounded-full ${badge.color}`}>
+                            {badge.label}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Role-based links */}
+                      <div className="py-1 max-h-64 overflow-y-auto">
+                        {links.map((link) => {
+                          const Icon = link.icon;
+                          return (
+                            <Link
+                              key={link.path}
+                              to={link.path}
+                              className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-emerald-600 transition-colors"
+                            >
+                              <Icon className="w-4 h-4 flex-shrink-0" />
+                              {link.name}
+                            </Link>
+                          );
+                        })}
+                      </div>
+
+                      {/* Logout */}
+                      <div className="border-t border-gray-100 pt-1">
+                        <button
+                          onClick={handleLogout}
+                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          <FiLogOut className="w-4 h-4" />
+                          Đăng xuất
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <>
                   <Link
@@ -184,36 +281,50 @@ function DefaultLayout({ children }) {
                   </Link>
                 );
               })}
-              
+
               <div className="pt-3 border-t border-gray-100">
                 {isLoggedIn ? (
                   <div className="space-y-2">
+                    {/* User info */}
                     <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 rounded-lg">
                       <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center text-white font-bold">
                         {currentUser?.name?.charAt(0) || 'U'}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-700 truncate">
-                          {currentUser?.name || 'User'}
-                        </p>
+                        <p className="text-sm font-medium text-gray-700 truncate">{currentUser?.name || 'User'}</p>
                         <p className="text-xs text-gray-500 truncate">{currentUser?.email}</p>
+                        {badge && (
+                          <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${badge.color}`}>
+                            {badge.label}
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Link
-                        to={dashboardPath}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 transition-colors"
-                      >
-                        <FiGrid className="w-5 h-5" />
-                        Dashboard
-                      </Link>
-                      <button
-                        onClick={handleLogout}
-                        className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-red-50 hover:text-red-600 transition-colors"
-                      >
-                        <FiLogOut className="w-5 h-5" />
-                      </button>
+
+                    {/* Role-based links */}
+                    <div className="space-y-1">
+                      {links.map((link) => {
+                        const Icon = link.icon;
+                        return (
+                          <Link
+                            key={link.path}
+                            to={link.path}
+                            className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
+                          >
+                            <Icon className="w-5 h-5" />
+                            <span className="font-medium">{link.name}</span>
+                          </Link>
+                        );
+                      })}
                     </div>
+
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <FiLogOut className="w-5 h-5" />
+                      <span className="font-medium">Đăng xuất</span>
+                    </button>
                   </div>
                 ) : (
                   <div className="flex gap-2">
@@ -288,11 +399,11 @@ function DefaultLayout({ children }) {
                 <span className="text-lg font-bold text-white">Learn Smart</span>
               </Link>
               <p className="text-sm text-gray-400 mb-4">
-                Nền tảng học tập thông minh với AI hỗ trợ giáo viên và học sinh. 
+                Nền tảng học tập thông minh với AI hỗ trợ giáo viên và học sinh.
                 Tiết kiệm thời gian, nâng cao chất lượng giảng dạy.
               </p>
             </div>
-            
+
             {/* Quick Links */}
             <div>
               <h3 className="font-semibold text-white mb-4">Về chúng tôi</h3>
@@ -302,19 +413,18 @@ function DefaultLayout({ children }) {
                 <li><Link to="/guide" className="hover:text-emerald-400 transition-colors">Hướng dẫn</Link></li>
               </ul>
             </div>
-            
+
             {/* Support */}
             <div>
               <h3 className="font-semibold text-white mb-4">Hỗ trợ</h3>
               <ul className="space-y-2 text-sm">
                 <li><Link to="/contact" className="hover:text-emerald-400 transition-colors">Liên hệ</Link></li>
-                <li><a href="#" className="hover:text-emerald-400 transition-colors">Câu hỏi thường gặp</a></li>
-                <li><a href="#" className="hover:text-emerald-400 transition-colors">Điều khoản sử dụng</a></li>
-                <li><a href="#" className="hover:text-emerald-400 transition-colors">Chính sách bảo mật</a></li>
+                <li><Link to="/terms" className="hover:text-emerald-400 transition-colors">Điều khoản sử dụng</Link></li>
+                <li><Link to="/privacy" className="hover:text-emerald-400 transition-colors">Chính sách bảo mật</Link></li>
               </ul>
             </div>
           </div>
-          
+
           <div className="mt-8 pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-sm text-gray-400">
               © 2025 Learn Smart. All rights reserved.

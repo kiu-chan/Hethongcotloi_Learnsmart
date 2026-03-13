@@ -116,37 +116,56 @@ function Home() {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
+      <style>{`
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(24px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes blob {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33%  { transform: translate(20px, -24px) scale(1.08); }
+          66%  { transform: translate(-16px, 16px) scale(0.94); }
+        }
+        .animate-slide-up { animation: slideUp 0.65s ease both; }
+        .animate-blob     { animation: blob 9s infinite ease-in-out; }
+        .delay-100 { animation-delay: 0.1s; }
+        .delay-200 { animation-delay: 0.2s; }
+        .delay-300 { animation-delay: 0.3s; }
+        .delay-400 { animation-delay: 0.4s; }
+        .animation-delay-2000 { animation-delay: 2s; }
+      `}</style>
+
       <section className="relative overflow-hidden bg-gradient-to-br from-emerald-50 via-white to-teal-50">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-emerald-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
-        <div className="absolute top-40 right-10 w-72 h-72 bg-teal-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
+        <div className="absolute top-20 left-10 w-80 h-80 bg-emerald-200 rounded-full mix-blend-multiply filter blur-3xl opacity-25 animate-blob" />
+        <div className="absolute top-40 right-10 w-80 h-80 bg-teal-200 rounded-full mix-blend-multiply filter blur-3xl opacity-25 animate-blob animation-delay-2000" />
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
           <div className="text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 rounded-full text-emerald-600 text-sm font-medium mb-6">
+            <div className="animate-slide-up inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 rounded-full text-emerald-600 text-sm font-medium mb-6">
               <FiZap className="w-4 h-4" />
               <span>Powered by AI</span>
             </div>
 
-            <h1 className="text-4xl lg:text-6xl font-bold text-gray-800 leading-tight mb-6">
+            <h1 className="animate-slide-up delay-100 text-4xl lg:text-6xl font-bold text-gray-800 leading-tight mb-6">
               Notebook thông minh cho
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-500"> giáo viên hiện đại</span>
             </h1>
 
-            <p className="text-lg lg:text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+            <p className="animate-slide-up delay-200 text-lg lg:text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
               Tự động hóa công việc giảng dạy với AI: Tóm tắt tài liệu, tạo câu hỏi, thiết kế đề thi, và nhiều hơn nữa
             </p>
 
-            <div className="flex flex-wrap justify-center gap-4 mb-12">
+            <div className="animate-slide-up delay-300 flex flex-wrap justify-center gap-4 mb-12">
               <Link
                 to="/register"
-                className="inline-flex items-center gap-2 px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-full transition-all shadow-lg shadow-emerald-500/25"
+                className="inline-flex items-center gap-2 px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-full transition-all shadow-lg shadow-emerald-500/25 hover:-translate-y-0.5"
               >
                 Bắt đầu miễn phí
                 <FiArrowRight className="w-5 h-5" />
               </Link>
               <Link
                 to="/about"
-                className="inline-flex items-center gap-2 px-8 py-4 bg-white hover:bg-gray-50 text-gray-700 font-semibold rounded-full border border-gray-200 transition-all"
+                className="inline-flex items-center gap-2 px-8 py-4 bg-white hover:bg-gray-50 text-gray-700 font-semibold rounded-full border border-gray-200 transition-all hover:-translate-y-0.5"
               >
                 Tìm hiểu thêm
               </Link>
@@ -189,7 +208,7 @@ function Home() {
               return (
                 <div
                   key={i}
-                  className="p-6 bg-white border border-gray-100 rounded-2xl hover:shadow-xl transition-all group"
+                  className="p-6 bg-white border border-gray-100 rounded-2xl hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group"
                 >
                   <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
                     <Icon className="w-7 h-7 text-white" />
@@ -226,7 +245,7 @@ function Home() {
               return (
                 <div
                   key={i}
-                  className="p-6 bg-white rounded-xl hover:shadow-lg transition-all group cursor-pointer"
+                  className="p-6 bg-white rounded-xl hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group cursor-pointer"
                 >
                   <div className="flex flex-col items-center text-center gap-3">
                     <div
@@ -271,22 +290,6 @@ function Home() {
         </div>
       </section>
 
-      <style>{`
-        @keyframes blob {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          25% { transform: translate(20px, -30px) scale(1.1); }
-          50% { transform: translate(-20px, 20px) scale(0.9); }
-          75% { transform: translate(30px, 10px) scale(1.05); }
-        }
-
-        .animate-blob {
-          animation: blob 8s infinite ease-in-out;
-        }
-
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-      `}</style>
     </div>
   );
 }

@@ -83,19 +83,37 @@ function ContactPage() {
 
   return (
     <div className="min-h-screen">
+      <style>{`
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(24px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes blob {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33%  { transform: translate(20px, -24px) scale(1.08); }
+          66%  { transform: translate(-16px, 16px) scale(0.94); }
+        }
+        .animate-slide-up { animation: slideUp 0.65s ease both; }
+        .animate-blob     { animation: blob 9s infinite ease-in-out; }
+        .delay-100 { animation-delay: 0.1s; }
+        .delay-200 { animation-delay: 0.2s; }
+        .animation-delay-2000 { animation-delay: 2s; }
+      `}</style>
+
       {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-br from-emerald-50 via-white to-teal-50 py-20 lg:py-28">
-        <div className="absolute top-10 left-10 w-72 h-72 bg-emerald-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30"></div>
+        <div className="absolute top-10 left-10 w-80 h-80 bg-emerald-200 rounded-full mix-blend-multiply filter blur-3xl opacity-25 animate-blob" />
+        <div className="absolute top-40 right-10 w-80 h-80 bg-teal-200 rounded-full mix-blend-multiply filter blur-3xl opacity-25 animate-blob animation-delay-2000" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 rounded-full text-emerald-600 text-sm font-medium mb-6">
+          <div className="animate-slide-up inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 rounded-full text-emerald-600 text-sm font-medium mb-6">
             <IoChatbubbleEllipsesOutline className="w-4 h-4" />
             <span>Liên hệ với chúng tôi</span>
           </div>
-          <h1 className="text-4xl lg:text-5xl font-bold text-gray-800 mb-6">
+          <h1 className="animate-slide-up delay-100 text-4xl lg:text-5xl font-bold text-gray-800 mb-6">
             Chúng tôi luôn sẵn sàng
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-500"> hỗ trợ bạn</span>
           </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          <p className="animate-slide-up delay-200 text-lg text-gray-600 max-w-2xl mx-auto">
             Hãy để lại tin nhắn, chúng tôi sẽ phản hồi trong thời gian sớm nhất.
           </p>
         </div>
@@ -108,7 +126,7 @@ function ContactPage() {
             {contactInfo.map((info, i) => {
               const Icon = info.icon;
               return (
-                <div key={i} className={`${info.color} rounded-2xl p-5 border border-gray-100`}>
+                <div key={i} className={`${info.color} rounded-2xl p-5 border border-gray-100 hover:-translate-y-1 hover:shadow-md transition-all duration-300`}>
                   <div className="flex items-center gap-3 mb-3">
                     <Icon className={`w-5 h-5 ${info.iconColor}`} />
                     <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">{info.title}</span>

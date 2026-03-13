@@ -77,7 +77,7 @@ const TeacherLayout = ({ children }) => {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
-            <Link to="/teacher/dashboard" className="flex items-center gap-3">
+            <Link to="/" className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center">
                 <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain" />
               </div>

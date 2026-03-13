@@ -84,7 +84,7 @@ const mainFeatures = [
 ];
 
 const highlights = [
-  { icon: FiZap, title: 'Powered by Gemini AI', desc: 'Sử dụng Google Gemini – mô hình AI tiên tiến nhất' },
+  { icon: FiZap, title: 'Powered by ChatGPT', desc: 'Sử dụng ChatGPT – mô hình AI tiên tiến nhất của OpenAI' },
   { icon: FiClock, title: 'Tiết kiệm 70% thời gian', desc: 'Tự động hóa các công việc soạn thảo lặp đi lặp lại' },
   { icon: FiShield, title: 'Bảo mật dữ liệu', desc: 'Dữ liệu được mã hóa và bảo vệ an toàn tuyệt đối' },
   { icon: FiUsers, title: 'Đa người dùng', desc: 'Hỗ trợ hàng nghìn giáo viên và học sinh đồng thời' },
@@ -135,33 +135,51 @@ const roles = [
 function FeaturesPage() {
   return (
     <div className="min-h-screen">
+      <style>{`
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(24px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes blob {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33%  { transform: translate(20px, -24px) scale(1.08); }
+          66%  { transform: translate(-16px, 16px) scale(0.94); }
+        }
+        .animate-slide-up { animation: slideUp 0.65s ease both; }
+        .animate-blob     { animation: blob 9s infinite ease-in-out; }
+        .delay-100 { animation-delay: 0.1s; }
+        .delay-200 { animation-delay: 0.2s; }
+        .delay-300 { animation-delay: 0.3s; }
+        .animation-delay-2000 { animation-delay: 2s; }
+      `}</style>
+
       {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-br from-emerald-50 via-white to-teal-50 py-20 lg:py-28">
-        <div className="absolute top-10 left-10 w-72 h-72 bg-emerald-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30"></div>
-        <div className="absolute top-40 right-10 w-72 h-72 bg-teal-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30"></div>
+        <div className="absolute top-10 left-10 w-80 h-80 bg-emerald-200 rounded-full mix-blend-multiply filter blur-3xl opacity-25 animate-blob" />
+        <div className="absolute top-40 right-10 w-80 h-80 bg-teal-200 rounded-full mix-blend-multiply filter blur-3xl opacity-25 animate-blob animation-delay-2000" />
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 rounded-full text-emerald-600 text-sm font-medium mb-6">
+          <div className="animate-slide-up inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 rounded-full text-emerald-600 text-sm font-medium mb-6">
             <FiZap className="w-4 h-4" />
             <span>Tính năng nổi bật</span>
           </div>
-          <h1 className="text-4xl lg:text-5xl font-bold text-gray-800 mb-6">
+          <h1 className="animate-slide-up delay-100 text-4xl lg:text-5xl font-bold text-gray-800 mb-6">
             Bộ công cụ AI toàn diện cho
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-500"> giáo dục</span>
           </h1>
-          <p className="text-lg text-gray-600 max-w-3xl mx-auto mb-10">
+          <p className="animate-slide-up delay-200 text-lg text-gray-600 max-w-3xl mx-auto mb-10">
             Learn Smart cung cấp đầy đủ công cụ AI giúp giáo viên tiết kiệm thời gian soạn giảng và học sinh học tập hiệu quả hơn mỗi ngày.
           </p>
-          <div className="flex flex-wrap justify-center gap-4">
+          <div className="animate-slide-up delay-300 flex flex-wrap justify-center gap-4">
             <Link
               to="/register"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-full transition-all shadow-lg shadow-emerald-500/25"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-full transition-all shadow-lg shadow-emerald-500/25 hover:-translate-y-0.5"
             >
               Dùng thử miễn phí <FiArrowRight className="w-5 h-5" />
             </Link>
             <Link
               to="/guide"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-white hover:bg-gray-50 text-gray-700 font-semibold rounded-full border border-gray-200 transition-all"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-white hover:bg-gray-50 text-gray-700 font-semibold rounded-full border border-gray-200 transition-all hover:-translate-y-0.5"
             >
               Xem hướng dẫn
             </Link>
@@ -205,7 +223,7 @@ function FeaturesPage() {
             {mainFeatures.map((feature, i) => {
               const Icon = feature.icon;
               return (
-                <div key={i} className="bg-white p-6 rounded-2xl border border-gray-100 hover:shadow-xl transition-all group">
+                <div key={i} className="bg-white p-6 rounded-2xl border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
                   <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform`}>
                     <Icon className="w-7 h-7 text-white" />
                   </div>
@@ -240,7 +258,7 @@ function FeaturesPage() {
             {roles.map((role, i) => {
               const Icon = role.icon;
               return (
-                <div key={i} className="rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl transition-all">
+                <div key={i} className="rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
                   <div className={`bg-gradient-to-br ${role.color} p-6 text-white`}>
                     <Icon className="w-10 h-10 mb-3" />
                     <h3 className="text-xl font-bold">{role.title}</h3>

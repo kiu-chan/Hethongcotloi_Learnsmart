@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  FiArrowRight, FiChevronDown, FiChevronUp, FiCheckCircle, FiZap,
+  FiArrowRight, FiChevronDown, FiZap,
 } from 'react-icons/fi';
 import {
   IoDocumentTextOutline,
@@ -9,7 +9,6 @@ import {
   IoGameControllerOutline,
   IoSchoolOutline,
   IoBulbOutline,
-  IoPersonOutline,
   IoLogInOutline,
   IoClipboardOutline,
   IoStatsChartOutline,
@@ -104,7 +103,7 @@ const faqs = [
   },
   {
     q: 'AI tạo câu hỏi có chính xác không?',
-    a: 'Learn Smart sử dụng Google Gemini – một trong những mô hình AI mạnh nhất hiện nay. Câu hỏi được tạo ra dựa trên nội dung tài liệu bạn cung cấp, đảm bảo độ chính xác và phù hợp với nội dung giảng dạy.',
+    a: 'Learn Smart sử dụng ChatGPT của OpenAI – một trong những mô hình AI mạnh nhất hiện nay. Câu hỏi được tạo ra dựa trên nội dung tài liệu bạn cung cấp, đảm bảo độ chính xác và phù hợp với nội dung giảng dạy.',
   },
   {
     q: 'Tôi có thể upload loại file nào?',
@@ -131,23 +130,21 @@ const faqs = [
 function FAQItem({ faq }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="border border-gray-200 rounded-xl overflow-hidden">
+    <div className="border border-gray-200 rounded-xl overflow-hidden transition-shadow hover:shadow-sm">
       <button
         onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-gray-50 transition-colors"
       >
         <span className="font-medium text-gray-800">{faq.q}</span>
-        {open ? (
-          <FiChevronUp className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-        ) : (
-          <FiChevronDown className="w-5 h-5 text-gray-400 flex-shrink-0" />
-        )}
+        <span className={`transition-transform duration-300 ${open ? 'rotate-180' : ''}`}>
+          <FiChevronDown className={`w-5 h-5 flex-shrink-0 ${open ? 'text-emerald-500' : 'text-gray-400'}`} />
+        </span>
       </button>
-      {open && (
+      <div className={`overflow-hidden transition-all duration-300 ${open ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
         <div className="px-6 py-4 border-t border-gray-100 bg-gray-50">
           <p className="text-gray-600 text-sm leading-relaxed">{faq.a}</p>
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -157,19 +154,37 @@ function GuidePage() {
 
   return (
     <div className="min-h-screen">
+      <style>{`
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(24px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes blob {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33%  { transform: translate(20px, -24px) scale(1.08); }
+          66%  { transform: translate(-16px, 16px) scale(0.94); }
+        }
+        .animate-slide-up { animation: slideUp 0.65s ease both; }
+        .animate-blob     { animation: blob 9s infinite ease-in-out; }
+        .delay-100 { animation-delay: 0.1s; }
+        .delay-200 { animation-delay: 0.2s; }
+        .animation-delay-2000 { animation-delay: 2s; }
+      `}</style>
+
       {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-br from-emerald-50 via-white to-teal-50 py-20 lg:py-28">
-        <div className="absolute top-10 right-10 w-72 h-72 bg-teal-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30"></div>
+        <div className="absolute top-10 left-10 w-80 h-80 bg-emerald-200 rounded-full mix-blend-multiply filter blur-3xl opacity-25 animate-blob" />
+        <div className="absolute top-40 right-10 w-80 h-80 bg-teal-200 rounded-full mix-blend-multiply filter blur-3xl opacity-25 animate-blob animation-delay-2000" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 rounded-full text-emerald-600 text-sm font-medium mb-6">
+          <div className="animate-slide-up inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 rounded-full text-emerald-600 text-sm font-medium mb-6">
             <FiZap className="w-4 h-4" />
             <span>Hướng dẫn sử dụng</span>
           </div>
-          <h1 className="text-4xl lg:text-5xl font-bold text-gray-800 mb-6">
+          <h1 className="animate-slide-up delay-100 text-4xl lg:text-5xl font-bold text-gray-800 mb-6">
             Bắt đầu chỉ trong
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-500"> vài phút</span>
           </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          <p className="animate-slide-up delay-200 text-lg text-gray-600 max-w-2xl mx-auto">
             Hướng dẫn từng bước giúp bạn làm quen và sử dụng thành thạo Learn Smart nhanh chóng.
           </p>
         </div>
@@ -223,7 +238,7 @@ function GuidePage() {
                       <span className="text-white text-[10px] font-bold mt-0.5">Bước {s.step}</span>
                     </div>
                     {/* Content */}
-                    <div className="flex-1 bg-gray-50 border border-gray-100 rounded-2xl p-6 hover:shadow-md transition-shadow">
+                    <div className="flex-1 bg-gray-50 border border-gray-100 rounded-2xl p-6 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
                       <h3 className="text-lg font-semibold text-gray-800 mb-1">{s.title}</h3>
                       <p className="text-gray-600 text-sm leading-relaxed">{s.desc}</p>
                     </div>
@@ -290,7 +305,7 @@ function GuidePage() {
                 dot: 'bg-teal-500',
               },
             ].map((tip, i) => (
-              <div key={i} className={`p-6 rounded-2xl border ${tip.color}`}>
+              <div key={i} className={`p-6 rounded-2xl border ${tip.color} hover:-translate-y-0.5 hover:shadow-sm transition-all duration-300`}>
                 <div className="flex items-start gap-3">
                   <div className={`w-2.5 h-2.5 rounded-full ${tip.dot} flex-shrink-0 mt-1.5`}></div>
                   <div>

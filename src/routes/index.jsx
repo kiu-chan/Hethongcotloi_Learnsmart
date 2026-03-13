@@ -6,6 +6,8 @@ import ResetPasswordPage from "../pages/account/ResetPasswordPage";
 import FeaturesPage from "../pages/Features/index";
 import GuidePage from "../pages/Guide/index";
 import ContactPage from "../pages/Contact/index";
+import TermsPage from "../pages/Terms/index";
+import PrivacyPage from "../pages/Privacy/index";
 import AdminDashboard from "../pages/admin/AdminDashboard/index.jsx";
 import AdminUsers from "../pages/admin/Users/index.jsx";
 import AdminExams from "../pages/admin/Exams/index.jsx";
@@ -72,6 +74,16 @@ const publicRoutes = [
   {
     path: "/contact",
     component: ContactPage,
+    layout: DefaultLayout,
+  },
+  {
+    path: "/terms",
+    component: TermsPage,
+    layout: DefaultLayout,
+  },
+  {
+    path: "/privacy",
+    component: PrivacyPage,
     layout: DefaultLayout,
   },
 ];
