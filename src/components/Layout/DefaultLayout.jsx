@@ -263,7 +263,7 @@ function DefaultLayout({ children }) {
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="lg:hidden bg-white border-t border-gray-100 shadow-lg">
+          <div className="lg:hidden bg-white border-t border-gray-100 shadow-lg max-h-[calc(100vh-4rem)] overflow-y-auto">
             <div className="px-4 py-4 space-y-2">
               {menuItems.map((item) => {
                 const Icon = item.icon;

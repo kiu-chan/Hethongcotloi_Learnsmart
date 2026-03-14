@@ -9,7 +9,6 @@ import {
   FiSearch,
   FiMenu,
   FiX,
-  FiClock,
   FiMessageCircle
 } from 'react-icons/fi';
 import {
@@ -173,6 +172,23 @@ const StudentLayout = ({ children }) => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        {/* Mobile Header */}
+        <header className="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 z-30">
+          <button
+            onClick={toggleSidebar}
+            className="p-2 rounded-xl text-gray-600 hover:bg-gray-100 transition-colors"
+          >
+            <FiMenu size={22} />
+          </button>
+          <Link to="/" className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl overflow-hidden flex items-center justify-center">
+              <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
+            </div>
+            <span className="text-base font-bold text-gray-800">Learn Smart</span>
+          </Link>
+          <div className="w-9" />
+        </header>
+
         {/* Page Content */}
         <main className={`flex-1 flex flex-col min-h-0 bg-gray-50 ${
           location.pathname === '/student/chat'

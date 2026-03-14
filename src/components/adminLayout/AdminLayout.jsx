@@ -179,6 +179,23 @@ const AdminLayout = ({ children }) => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Mobile Header */}
+        <header className="md:hidden flex items-center justify-between px-4 py-3 bg-indigo-700 z-30">
+          <button
+            onClick={toggleSidebar}
+            className="p-2 rounded-xl text-white hover:bg-indigo-600 transition-colors"
+          >
+            <FiMenu size={22} />
+          </button>
+          <Link to="/" className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl overflow-hidden flex items-center justify-center">
+              <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
+            </div>
+            <span className="text-base font-bold text-white">Admin Panel</span>
+          </Link>
+          <div className="w-9" />
+        </header>
+
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto bg-gray-50 p-6">
           {children || <Outlet />}
