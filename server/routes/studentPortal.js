@@ -754,7 +754,7 @@ router.get('/documents', async (req, res) => {
       ...(teacherIds.length > 0 && { teacher: { $in: teacherIds } }),
       sharedClasses: { $in: classNames },
     })
-      .select('name originalName type size formattedSize sharedClasses createdAt filePath url')
+      .select('name originalName type size formattedSize sharedClasses label createdAt filePath url')
       .sort({ createdAt: -1 });
 
     res.json({ success: true, documents });

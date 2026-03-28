@@ -14,6 +14,7 @@ import {
   FiExternalLink,
   FiImage,
   FiLink,
+  FiTag,
 } from 'react-icons/fi';
 import { IoSchoolOutline, IoDocumentTextOutline } from 'react-icons/io5';
 import HomeworkSection from './HomeworkSection';
@@ -106,6 +107,21 @@ const SharedDocumentsSection = ({ selectedClass }) => {
       )
     : documents;
 
+  // Group by label; documents without label go to 'Chung'
+  const grouped = filtered.reduce((acc, doc) => {
+    const key = doc.label?.trim() || 'Chung';
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(doc);
+    return acc;
+  }, {});
+
+  // Sort groups: 'Chung' always last
+  const groupKeys = Object.keys(grouped).sort((a, b) => {
+    if (a === 'Chung') return 1;
+    if (b === 'Chung') return -1;
+    return a.localeCompare(b, 'vi');
+  });
+
   if (loading) {
     return (
       <div className="flex justify-center py-8">
@@ -123,60 +139,62 @@ const SharedDocumentsSection = ({ selectedClass }) => {
     );
   }
 
-  return (
-    <div className="space-y-3">
-      {filtered.map((doc) => {
-        const colorClass = getFileColor(doc.type);
-        const DocIcon = getDocIcon(doc.type);
-        return (
-          <div key={doc._id} className="bg-white rounded-xl border border-gray-100 p-4 hover:shadow-sm transition-shadow">
-            <div className="flex items-center gap-3">
-              {/* Thumbnail for images, icon for others */}
-              {isImageType(doc.type) ? (
-                <img
-                  src={`/uploads/${doc.filePath}`}
-                  alt={doc.name}
-                  className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
-                />
-              ) : (
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${colorClass}`}>
-                  <DocIcon className="w-5 h-5" />
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-800 text-sm truncate">{doc.name}</p>
-                <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400">
-                  <span className="uppercase font-medium">{doc.type === 'link' ? 'Link' : doc.type}</span>
-                  {doc.type !== 'link' && <span>{doc.formattedSize}</span>}
-                  <span>{new Date(doc.createdAt).toLocaleDateString('vi-VN')}</span>
-                </div>
-                {doc.type === 'link' && (
-                  <p className="text-xs text-sky-500 truncate mt-0.5">{doc.url}</p>
-                )}
-              </div>
-              {doc.type === 'link' ? (
-                <a
-                  href={doc.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white text-xs font-medium rounded-lg transition-colors flex-shrink-0"
-                >
-                  <FiExternalLink className="w-3.5 h-3.5" />
-                  Mở link
-                </a>
-              ) : (
-                <button
-                  onClick={() => handleDownload(doc)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg transition-colors flex-shrink-0"
-                >
-                  <FiDownload className="w-3.5 h-3.5" />
-                  Tải về
-                </button>
-              )}
+  const DocItem = ({ doc }) => {
+    const colorClass = getFileColor(doc.type);
+    const DocIcon = getDocIcon(doc.type);
+    return (
+      <div className="bg-white rounded-xl border border-gray-100 p-4 hover:shadow-sm transition-shadow">
+        <div className="flex items-center gap-3">
+          {isImageType(doc.type) ? (
+            <img src={`/uploads/${doc.filePath}`} alt={doc.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+          ) : (
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${colorClass}`}>
+              <DocIcon className="w-5 h-5" />
             </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-gray-800 text-sm truncate">{doc.name}</p>
+            <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400">
+              <span className="uppercase font-medium">{doc.type === 'link' ? 'Link' : doc.type}</span>
+              {doc.type !== 'link' && <span>{doc.formattedSize}</span>}
+              <span>{new Date(doc.createdAt).toLocaleDateString('vi-VN')}</span>
+            </div>
+            {doc.type === 'link' && <p className="text-xs text-sky-500 truncate mt-0.5">{doc.url}</p>}
           </div>
-        );
-      })}
+          {doc.type === 'link' ? (
+            <a href={doc.url} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white text-xs font-medium rounded-lg transition-colors flex-shrink-0">
+              <FiExternalLink className="w-3.5 h-3.5" />
+              Mở link
+            </a>
+          ) : (
+            <button onClick={() => handleDownload(doc)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg transition-colors flex-shrink-0">
+              <FiDownload className="w-3.5 h-3.5" />
+              Tải về
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      {groupKeys.map((groupKey) => (
+        <div key={groupKey}>
+          <div className="flex items-center gap-2 mb-3">
+            <FiTag className="w-4 h-4 text-indigo-500" />
+            <h4 className="text-sm font-semibold text-gray-700">{groupKey}</h4>
+            <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">
+              {grouped[groupKey].length}
+            </span>
+          </div>
+          <div className="space-y-2 pl-1">
+            {grouped[groupKey].map((doc) => <DocItem key={doc._id} doc={doc} />)}
+          </div>
+        </div>
+      ))}
     </div>
   );
 };

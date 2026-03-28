@@ -203,7 +203,7 @@ router.put('/:id', async (req, res) => {
 // PATCH /api/documents/:id/share - Chia sẻ tài liệu cho lớp học
 router.patch('/:id/share', async (req, res) => {
   try {
-    const { classNames } = req.body;
+    const { classNames, label } = req.body;
     if (!Array.isArray(classNames)) {
       return res.status(400).json({ message: 'classNames phải là mảng' });
     }
@@ -213,6 +213,7 @@ router.patch('/:id/share', async (req, res) => {
     }
     doc.sharedClasses = classNames;
     doc.sharedWith = classNames.length;
+    doc.label = label !== undefined ? label.trim() : doc.label;
     await doc.save();
     res.json({ success: true, document: doc });
   } catch (error) {

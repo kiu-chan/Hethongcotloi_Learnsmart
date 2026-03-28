@@ -24,6 +24,7 @@ const documentSchema = new mongoose.Schema(
     isFavorite: { type: Boolean, default: false },
     sharedWith: { type: Number, default: 0 },
     sharedClasses: { type: [String], default: [] },
+    label: { type: String, default: '' },
     teacher: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
