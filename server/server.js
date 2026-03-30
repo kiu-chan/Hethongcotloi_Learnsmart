@@ -16,12 +16,13 @@ import dashboardRoutes from './routes/dashboard.js';
 import studentPortalRoutes from './routes/studentPortal.js';
 import adminRoutes from './routes/admin.js';
 import homeworkRoutes from './routes/homework.js';
+import aiRoutes from './routes/ai.js';
 import User from './models/User.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config({ path: './server/.env' });
+dotenv.config({ path: './server/.env', override: true });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -43,6 +44,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/student-portal', studentPortalRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/homework', homeworkRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
