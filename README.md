@@ -146,7 +146,7 @@ nckh_tuyenquang/
 │   │       └── StudentLayout.jsx     # Sidebar + header cho Học sinh
 │   │
 │   ├── services/
-│   │   └── aiService.js              # Gọi OpenAI API hỗ trợ tính năng AI
+│   │   └── aiService.js              # Gọi server API /api/ai/* để tạo câu hỏi, tóm tắt, chat AI
 │   │
 │   └── pages/                        # Các trang, tổ chức theo vai trò
 │       ├── Home/ · About/ · Features/ · Guide/ · Contact/   # Trang công khai
@@ -302,24 +302,30 @@ Dự án **không** fine-tune hay huấn luyện lại model. Toàn bộ hành v
 
 ### Kiến trúc tích hợp
 
-OpenAI SDK được gọi **trực tiếp từ trình duyệt** (client-side), không qua server:
+OpenAI SDK được gọi **phía server** — API key không bao giờ lộ ra client:
 
 ```
 [Trình duyệt]
      │
-     ├─ new OpenAI({ apiKey: VITE_OPENAI_API_KEY, dangerouslyAllowBrowser: true })
+     ├─ fetch('/api/ai/chat', { headers: { Authorization: 'Bearer <JWT>' } })
+     │
+     ▼
+[Express.js Server]
+     ├─ protect middleware (xác thực JWT)
+     ├─ role middleware (chỉ teacher / admin)
+     ├─ new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
      │
      ▼
 openai.chat.completions.create({ model: 'gpt-4o', messages: [...] })
-     │  HTTPS trực tiếp → api.openai.com
+     │  HTTPS → api.openai.com
      ▼
 [GPT-4o trả về JSON / text]
      │
      ▼
-[React cập nhật UI]
+[Express trả JSON về client → React cập nhật UI]
 ```
 
-API key lưu trong biến môi trường Vite `VITE_OPENAI_API_KEY` (file `.env` thư mục gốc). Vì gọi từ client nên key xuất hiện trong browser bundle — cần giới hạn bằng **Usage Limit** và **Rate Limit** trên OpenAI dashboard.
+API key lưu trong `server/.env` — không bao giờ được bundle vào client. Mọi request AI đều yêu cầu JWT hợp lệ.
 
 ---
 
@@ -525,9 +531,11 @@ Hash mật khẩu một chiều trước khi lưu vào DB. Khi đăng nhập, `b
 Middleware xử lý `multipart/form-data` — cần thiết để nhận file upload. File được lưu vào `server/uploads/` với tên được đặt lại theo timestamp để tránh trùng. Được dùng trong routes `documents.js` (upload tài liệu) và `exams.js` (import đề thi).
 
 #### OpenAI SDK 6
-Gọi OpenAI API từ phía server (không expose API key ra client). Dùng trong:
-- Route tạo câu hỏi AI cho đề thi (`POST /api/exams/ai-generate`)
-- Chat AI cho giáo viên và học sinh (`/api/chat`)
+Gọi OpenAI API từ phía server — API key không bao giờ lộ ra client. Dùng trong `server/routes/ai.js`:
+- `POST /api/ai/multiple-choice` — tạo câu hỏi trắc nghiệm
+- `POST /api/ai/essay` — tạo câu hỏi tự luận
+- `POST /api/ai/summarize` — tóm tắt tài liệu
+- `POST /api/ai/chat` — chat AI cho giáo viên và học sinh
 
 #### Google Auth Library
 Xác minh Google ID token khi người dùng đăng nhập bằng Google OAuth. Client gửi credential token từ Google Sign-In SDK → server dùng `google-auth-library` verify tính hợp lệ → tạo hoặc tìm User trong DB → trả JWT của hệ thống.
@@ -808,9 +816,10 @@ Không gian học tập chính của học sinh:
 ### Frontend — `.env` (thư mục gốc)
 
 ```env
-VITE_GEMINI_API_KEY=your_gemini_api_key
 VITE_GOOGLE_CLIENT_ID=your_google_client_id
 ```
+
+> Không cần `VITE_OPENAI_API_KEY` — mọi AI call đều đi qua server.
 
 ### Backend — `server/.env`
 
@@ -819,7 +828,7 @@ NODE_ENV=production
 PORT=3000
 MONGO_URI=mongodb://localhost:27017/nckh_tuyenquang
 JWT_SECRET=your_very_secret_key_min_32_chars
-GEMINI_API_KEY=your_gemini_api_key
+OPENAI_API_KEY=your_openai_api_key
 GOOGLE_CLIENT_ID=your_google_client_id
 ```
 

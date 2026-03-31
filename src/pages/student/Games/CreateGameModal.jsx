@@ -1,17 +1,11 @@
 import { useState, useEffect } from 'react';
 import { FiX, FiPlus, FiTrash2, FiZap, FiLoader } from 'react-icons/fi';
-import OpenAI from 'openai';
-
 const API = '/api';
 const getAuthHeaders = () => {
   const token = localStorage.getItem('authToken');
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 };
 
-const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY || '',
-  dangerouslyAllowBrowser: true,
-});
 
 const CreateGameModal = ({ game, defaultType, onClose, onSaved }) => {
   const isEditing = !!game;
@@ -63,11 +57,14 @@ Mỗi cặp gồm mặt trước (front) là câu hỏi/thuật ngữ và mặt 
 Trả về JSON array, KHÔNG kèm markdown:
 [{"front":"...","back":"..."}]`;
 
-      const result = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [{ role: 'user', content: prompt }],
+      const res = await fetch(`${API}/ai/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('authToken')}` },
+        body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] }),
       });
-      const text = result.choices[0].message.content;
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Lỗi server');
+      const text = data.content;
       const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const generated = JSON.parse(cleaned);
 

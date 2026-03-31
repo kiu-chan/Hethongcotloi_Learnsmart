@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-import OpenAI from 'openai';
 import { useAuth } from '../../../contexts/AuthContext';
 import MathDisplay from '../../../components/MathDisplay';
 import {
@@ -21,10 +20,6 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
-const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY || '',
-  dangerouslyAllowBrowser: true,
-});
 
 const SYSTEM_INSTRUCTION = `Bạn là trợ lý học tập AI thân thiện dành cho học sinh phổ thông Việt Nam. Tên bạn là "Trợ lý Learn Smart".
 
@@ -226,11 +221,17 @@ const StudentChat = () => {
         ...history,
         { role: 'user', content: lastContent },
       ];
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: openAIMessages,
+      const res = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+        },
+        body: JSON.stringify({ messages: openAIMessages.slice(1), systemInstruction: openAIMessages[0].content }),
       });
-      const aiText = response.choices[0].message.content;
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Lỗi server');
+      const aiText = data.content;
 
       setMessages((prev) => [...prev, { role: 'ai', text: aiText, timestamp: Date.now() }]);
     } catch (error) {

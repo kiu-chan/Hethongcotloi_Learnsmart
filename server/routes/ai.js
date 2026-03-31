@@ -5,7 +5,10 @@ import authorize from '../middleware/role.js';
 
 const router = express.Router();
 
-router.use(protect, authorize('teacher', 'admin'));
+router.use(protect);
+
+// /multiple-choice, /essay, /summarize chỉ dành cho teacher và admin
+router.use(['/multiple-choice', '/essay', '/summarize'], authorize('teacher', 'admin'));
 
 let openai;
 const getOpenAI = () => {
