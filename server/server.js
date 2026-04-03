@@ -22,7 +22,7 @@ import User from './models/User.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config({ path: './.env', override: true });
+dotenv.config({ path: path.resolve(__dirname, '../.env'), override: true });
 
 const app = express();
 const PORT = process.env.PORT || 3000;

@@ -946,8 +946,8 @@ SSL tự gia hạn mỗi 90 ngày. Kiểm tra: `sudo certbot renew --dry-run`
 Vào [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials), thêm vào **Authorized JavaScript origins**:
 
 ```
-https://harutobui.com
-https://www.harutobui.com
+https://hoctapthongminh.com
+https://www.hoctapthongminh.com
 ```
 
 ---
@@ -958,8 +958,8 @@ https://www.harutobui.com
 
 ```bash
 #!/bin/bash
-EC2_IP="<EC2-IP>"
-KEY="~/.ssh/your-key.pem"
+EC2_IP="52.76.248.53"
+KEY="key.pem"
 REMOTE="/var/www/nckh_tuyenquang"
 
 echo "==> Building..."
@@ -969,16 +969,14 @@ echo "==> Uploading..."
 rsync -avz --progress \
   -e "ssh -i $KEY" \
   --exclude='node_modules' \
-  --exclude='src' \
   --exclude='.git' \
   --exclude='.env' \
-  dist server server.js package.json \
-  ubuntu@$EC2_IP:$REMOTE/
+  . ubuntu@$EC2_IP:$REMOTE/
 
 echo "==> Restarting server..."
 ssh -i $KEY ubuntu@$EC2_IP "cd $REMOTE && npm install --omit=dev && pm2 restart nckh"
 
-echo "==> Done! https://harutobui.com"
+echo "==> Done! https://www.hoctapthongminh.com"
 ```
 
 ```bash
@@ -993,13 +991,12 @@ chmod +x deploy.sh
 npm run build
 
 # 2. Upload lên EC2
-rsync -avz -e "ssh -i key.pem" \
-  --exclude='node_modules' --exclude='src' --exclude='.git' --exclude='.env' \
-  dist server server.js package.json \
-  ubuntu@54.179.194.184:/var/www/nckh_tuyenquang/
+rsync -avz --progress -e "ssh -i key.pem" \
+  --exclude='node_modules' --exclude='.git' --exclude='.env' \
+  . ubuntu@52.76.248.53:/var/www/nckh_tuyenquang/
 
-# 3. Restart server (gộp 1 lệnh)
-ssh -i key.pem ubuntu@54.179.194.184 "cd /var/www/nckh_tuyenquang && npm install --omit=dev && pm2 restart nckh"
+# 3. Restart server
+ssh -i key.pem ubuntu@52.76.248.53 "cd /var/www/nckh_tuyenquang && npm install --omit=dev && pm2 restart nckh"
 ```
 
 ---
